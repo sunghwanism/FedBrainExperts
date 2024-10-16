@@ -20,8 +20,6 @@ def FLconfig():
     parser.add_argument('--crop_size',type=int, nargs='+', default=(96, 128, 96),)
     
     # Device Arguments
-    parser.add_argument('--use_ddp', action='store_true',
-                        help='Use DistributedDataParallel')
     parser.add_argument('--device_id', type=int, help='Which GPU to use')
     parser.add_argument('--num_workers', type=int, default=16,
                         help='Number of workers for dataloader')
@@ -29,10 +27,10 @@ def FLconfig():
 
     ####################### Train Configuration #######################
     # Train Arguments
-    parser.add_argument('--batch_size', type=int, default=65,
+    parser.add_argument('--batch_size', type=int, default=80,
                         help='Batch size')
-    parser.add_argument('--epochs', type=int, default=1,
-                        help='Number of epochs per round')    
+    parser.add_argument('--epochs', type=int, default=20,
+                        help='Number of epochs per round')
     parser.add_argument('--lr', type=float, default=1e-6,
                         help='Learning rate')
     parser.add_argument('--optimizer', type=str, default='sgd',
@@ -49,11 +47,13 @@ def FLconfig():
                         default=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
                         help='Index of the dataset to use')
     parser.add_argument('--agg_method', type=str, default='FedAvg',
-                        help='Aggregation method')
-    parser.add_argument('use_adpt', action='store_true',
+                        help='Aggregation method (FedAvg, FedProx, MOON, SCAFFOLD, FedCKA)')
+    parser.add_argument('--use_adpt', action='store_true',
                         help='Use Adaptation')
     parser.add_argument('--personalized', action='store_true',
                         help='Use Personalized Model')
+    parser.add_argument('--proximal_mu', type=float, default=0.1,
+                        help='Proximal term for FedProx')
 
     ####################### MODEL Configuration ####################### 
 
@@ -63,7 +63,6 @@ def FLconfig():
                         help='Depth of model')
     parser.add_argument('--out_dim', type=int, default=1, # 1 for regression
                         help='Output dimension')
-
 
     ####################### SAVE Configuration #######################
 

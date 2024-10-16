@@ -10,38 +10,30 @@ from tqdm import tqdm
 from src.metric.function import MAE, MSE
 
 
-def LocalUpdate(client_idx, _round, global_model, TrainDataset_dict, ValDataset_dict, 
-                config, device, run_wandb=None):
+def LocalUpdate(client_idx, global_model, TrainDataset_dict, config, device):
     """
     Args:
         client_idx: int
         global_model: torch.nn.Module
         TrainDataset_dict: dict {client_idx: FLDataset}
         config: argparse.Namespace
-        run_wandb: wandb object
-    
+        device: torch.device
+
     Returns:
-        local_model.state_dict(): dict {str: torch.Tensor}
-        epoch_loss: float
+        local_model.state_dict():
     """
 
     TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict[client_idx], 
                                               batch_size=config.batch_size, 
                                               shuffle=True, num_workers=config.num_workers)
 
-    ValLoader = torch.utils.data.DataLoader(ValDataset_dict[client_idx], 
-                                            batch_size=config.batch_size, 
-                                            shuffle=False, num_workers=config.num_workers)
-
     local_model = deepcopy(global_model).to(device)
-    local_model.train()
 
     if config.optimizer == 'adam':
         optimizer = torch.optim.Adam(local_model.parameters(), lr=config.lr)
     elif config.optimizer == 'sgd':
         optimizer = torch.optim.SGD(local_model.parameters(), lr=config.lr, momentum=config.momentum)
        
-
     criterion = nn.MSELoss()
 
     for epoch in range(config.epochs):
@@ -56,7 +48,18 @@ def LocalUpdate(client_idx, _round, global_model, TrainDataset_dict, ValDataset_
 
             optimizer.zero_grad()
             output = local_model(images)
-            loss = criterion(output.squeeze(), labels.squeeze())
+
+            if config.agg_method == 'FedAvg':
+                loss = criterion(output.squeeze(), labels.squeeze())
+
+            elif config.agg_method == 'FedProx':
+                proximal_term = 0
+                proximal_mu = config.proximal_mu
+                for local_w, glob_w in zip(local_model.parameters(), global_model.parameters()):
+                    proximal_term += torch.square((local_w - glob_w).norm(2))
+
+                loss = criterion(output.squeeze(), labels.squeeze()) + (proximal_mu / 2) * proximal_term
+
             loss.backward()
             optimizer.step()
 
@@ -72,44 +75,7 @@ def LocalUpdate(client_idx, _round, global_model, TrainDataset_dict, ValDataset_
                                     "MAE_loss": round(mae / (batch_idx + 1), 3),
                                     })
 
-        local_model.eval()
-        
-        train_epoch_loss = deepcopy(epoch_loss)
-        train_mae = deepcopy(mae)
-
-        epoch_loss = 0
-        mae = 0
-        val_progress_bar = tqdm(enumerate(ValLoader), total=len(ValLoader), ncols=100)
-
-        for batch_idx, batch in val_progress_bar:
-            images, labels = batch[0].to(device), batch[1].to(device)
-            output = local_model(images)
-            loss = criterion(output.squeeze(), labels.squeeze())
-            epoch_loss += loss.item()
-
-            mae += MAE(output.detach().cpu().numpy().squeeze(), 
-                        labels.detach().cpu().numpy().squeeze())
-
-            val_progress_bar.set_postfix({
-                                            "Client": client_idx,
-                                            "[Valid] Round": epoch+1,
-                                            "MSE_loss": round(epoch_loss / (batch_idx + 1), 3),
-                                            "MAE_loss": round(mae / (batch_idx + 1), 3),
-                                            })
-            
-    if not config.nowandb:
-        run_wandb.log({
-            "round": _round,
-            f"Client_{client_idx}-Train_Loss": round(train_epoch_loss / len(TrainLoader), 3),
-            f"Client_{client_idx}-Train_MAE": round(train_mae / len(TrainLoader), 3),
-            f"Client_{client_idx}-Valid_Loss": round(epoch_loss / len(ValLoader), 3),
-            f"Client_{client_idx}-Valid_MAE": round(mae / len(ValLoader), 3),
-        })
-
-    return local_model.state_dict(), (train_epoch_loss / len(TrainLoader), 
-                                      epoch_loss / len(ValLoader),
-                                      train_mae / len(TrainLoader),
-                                      mae / len(ValLoader))
+    return local_model.cpu().state_dict()
 
 
 def inference(client_idx, global_model, local_weight, TestDataset_dict, config, device):
