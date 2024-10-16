@@ -86,6 +86,9 @@ def main(config):
                     f"Client_{client_idx}-Test_MAE": round(test_result[1], 3),
                 })
 
+        del train_result, valid_result, test_result
+        torch.cuda.empty_cache()
+
     end = time.time()
 
     running_time = end-start

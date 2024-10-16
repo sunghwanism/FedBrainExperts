@@ -30,7 +30,7 @@ def LocalUpdate(client_idx, global_model, TrainDataset_dict, config, device):
     local_model = deepcopy(global_model).to(device)
 
     if config.optimizer == 'adam':
-        optimizer = torch.optim.Adam(local_model.parameters(), lr=config.lr)
+        optimizer = torch.optim.Adam(local_model.parameters(), lr=config.lr, weight_decay=1e-4)
     elif config.optimizer == 'sgd':
         optimizer = torch.optim.SGD(local_model.parameters(), lr=config.lr, momentum=config.momentum)
        
@@ -61,6 +61,7 @@ def LocalUpdate(client_idx, global_model, TrainDataset_dict, config, device):
                 loss = criterion(output.squeeze(), labels.squeeze()) + (proximal_mu / 2) * proximal_term
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(local_model.parameters(), max_norm=1.0)
             optimizer.step()
 
             epoch_loss += loss.item()
