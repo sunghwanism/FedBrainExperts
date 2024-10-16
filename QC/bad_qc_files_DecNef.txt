@@ -1,0 +1,4 @@
+/NFS/Users/moonsh/data/FLData/Image/DecNef/wm1346_mprage.nii
+/NFS/Users/moonsh/data/FLData/Image/DecNef/wm1536_mprage.nii
+/NFS/Users/moonsh/data/FLData/Image/DecNef/wm1556_mprage.nii
+/NFS/Users/moonsh/data/FLData/Image/DecNef/wm1569_mprage.nii

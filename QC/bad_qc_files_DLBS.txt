@@ -1,0 +1,3 @@
+/NFS/Users/moonsh/data/FLData/Image/DLBS/wmDLBS_28478_1_anat.nii
+/NFS/Users/moonsh/data/FLData/Image/DLBS/wmDLBS_28571_1_anat.nii
+/NFS/Users/moonsh/data/FLData/Image/DLBS/wmDLBS_28615_1_anat.nii

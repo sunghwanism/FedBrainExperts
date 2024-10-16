@@ -1,0 +1,3 @@
+/NFS/Users/moonsh/data/FLData/Image/IXI/wmIXI002_Guys_0828_T1_brain_extracted.nii.gz
+/NFS/Users/moonsh/data/FLData/Image/IXI/wmIXI029_Guys_0829_T1.nii
+/NFS/Users/moonsh/data/FLData/Image/IXI/wmIXI213_HH_1642_T1.nii
