@@ -22,38 +22,38 @@ def FLconfig():
     # Device Arguments
     parser.add_argument('--use_ddp', action='store_true',
                         help='Use DistributedDataParallel')
-    parser.add_argument('--device_id', type=str, help='Which GPU to use')
-    parser.add_argument('--num_workers', type=int, default=5,
+    parser.add_argument('--device_id', type=int, help='Which GPU to use')
+    parser.add_argument('--num_workers', type=int, default=16,
                         help='Number of workers for dataloader')
     
 
     ####################### Train Configuration #######################
     # Train Arguments
-    parser.add_argument('--batch_size', type=int, default=12,
+    parser.add_argument('--batch_size', type=int, default=65,
                         help='Batch size')
-    parser.add_argument('--epochs', type=int, default=40,
+    parser.add_argument('--epochs', type=int, default=1,
                         help='Number of epochs per round')    
-    parser.add_argument('--lr', type=float, default=1e-4,
+    parser.add_argument('--lr', type=float, default=1e-6,
                         help='Learning rate')
     parser.add_argument('--optimizer', type=str, default='sgd',
                         help='Optimizer (sgd, adam)')
-    parser.add_argument('--momentum', type=float, default=0.9,
+    parser.add_argument('--momentum', type=float, default=0.8,
                         help='Momentum for SGD')
     
     # Federated Learning Arguments
     parser.add_argument('--num_clients', type=int, default=10,
                         help='Number of clients')
-    parser.add_argument('--num_rounds', type=int, default=100,
+    parser.add_argument('--round', type=int, default=2,
                         help='Number of rounds')
     parser.add_argument('--data_idx', type=int, nargs='+', 
                         default=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
                         help='Index of the dataset to use')
-    
     parser.add_argument('--agg_method', type=str, default='FedAvg',
                         help='Aggregation method')
     parser.add_argument('use_adpt', action='store_true',
                         help='Use Adaptation')
-
+    parser.add_argument('--personalized', action='store_true',
+                        help='Use Personalized Model')
 
     ####################### MODEL Configuration ####################### 
 
@@ -73,6 +73,8 @@ def FLconfig():
     
     parser.add_argument('--save_interval', type=int, default=10,
                         help='How often to save')
+
+    parser.add_argument('--log_interval', type=int, default=5,)
     
     ####################### Wandb Configuration #######################
     # Wandb Arguments

@@ -25,7 +25,7 @@ class FLDataset(TensorDataset):
             self.df = pd.read_csv(os.path.join(DATAPATH, "Phenotype", f"{dataname}_Phenotype_test.csv"))
 
         if dataname == 'DecNef':
-            self.df['Subject'] = self.df['Subject'].apply(lambda x: x.split('-')[1])
+            self.df['Subject'] = self.df['Subject'].apply(lambda x: str(x).zfill(3))
 
         self.get_info = get_info
         self.config = config
@@ -39,13 +39,13 @@ class FLDataset(TensorDataset):
     def __getitem__(self, idx):
 
         use_subj = self.df.iloc[idx]
-        MRImage = nib.load(use_subj['ImageFile']).get_fdata()
+        MRImage = nib.load(os.path.join(self.IMGPATH, use_subj['ImageFile'])).get_fdata()
         Age = use_subj['Age']
 
         # Convert the numpy array to a PyTorch tensor
         MRImage = torch.tensor(MRImage, dtype=torch.float32).unsqueeze(0)
         MRImage = self.crop_img(MRImage) # crop the image
-        Age = torch.tensor(Age['Control_B'], dtype=torch.float32)
+        Age = torch.tensor(Age, dtype=torch.float32)
 
         if self.get_info:
             return (MRImage, Age, use_subj['Subject'], use_subj['Sex(1=m,2=f)'])

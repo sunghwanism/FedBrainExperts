@@ -1,13 +1,13 @@
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 import torch
 from torch import nn
 
 import wandb
 
-from src.model.ResNet import resnet
+from src.model import resnet
 from src.data.DataList import dataset_dict
 from src.data.FLDataset import FLDataset
 
@@ -54,22 +54,23 @@ def generate_model(opt):
 def init_wandb(config):
     if not config.nowandb:
         assert wandb is not None, "Wandb not installed, please install it or run without wandb"
-        wandb.init(project=config.wandb_project, entity=config.wandb_entity, config=config)
+        wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, config=config)
         config.wandb_url = wandb.run.get_url()
+        
+        return wandb_run
 
 
-
-def get_client_dataset(use_data_idx, client_num, _mode, verbose=False, get_info=False, PATH='/NFS/Users/moonsh/data/FLData/'):
+def get_client_dataset(config, client_num, _mode, verbose=False, get_info=False, PATH='/NFS/Users/moonsh/data/FLData/'):
     """
     use_data_idx: list of int for the index of the dataset from DataList.py
     client_num: int for the number of clients
     """
 
-    assert len(use_data_idx) == client_num, "The number of clients should be equal to the length of use_data_idx"
+    assert len(config.data_idx) == client_num, "The number of clients should be equal to the length of use_data_idx"
 
     client_dataset_dict = {}
 
-    for client_idx, data_idx in enumerate(use_data_idx):
+    for client_idx, data_idx in enumerate(config.data_idx):
         dataname = [k for k, v in dataset_dict.items() if v == data_idx][0]
 
         client_dataset = FLDataset(dataname, PATH, config, verbose=verbose, 
