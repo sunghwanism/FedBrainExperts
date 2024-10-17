@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 import torch
 import wandb
+import json
 
 from monai.utils import set_determinism
 
@@ -51,14 +52,26 @@ def main(config):
     global_model = generate_model(config).to(device)
     aggregator = Aggregator(global_model, device, config)
 
-    for _round in range(config.round):
-        _round += 1
+    best_valid_loss = float('inf')
 
+    if not config.nowandb:
+        config_dict = vars(config)
+        configPath = os.path.join(config.save_path, config.agg_method, f'config_{run_wandb.run.name}.json')
+        with open(configPath, 'w') as f:
+            json.dump(config_dict, f, indent=4)
+
+    learning_rate = config.lr
+
+    for _round in range(config.round):
+        round_start = time.time()
+        _round += 1
         local_weights = {}
+
+        learning_rate *= 0.95 # learning rate scheduler
     
         for client_idx in range(config.num_clients):
             print(f"#################################### Round {_round} | Client {client_idx} Training ####################################")
-            local_model_weight = LocalUpdate(client_idx, global_model, 
+            local_model_weight = LocalUpdate(client_idx, global_model, learning_rate,
                                              TrainDataset_dict, config, device)
 
             local_weights[client_idx] = local_model_weight
@@ -74,6 +87,7 @@ def main(config):
             test_result = inference(client_idx, global_model, local_weights, 
                                     TestDataset_dict, config, device)
 
+
             if not config.nowandb:
                 run_wandb.log({
                     "round": _round,
@@ -85,6 +99,24 @@ def main(config):
                     f"Client_{client_idx}-Test_Loss": round(test_result[0], 3),
                     f"Client_{client_idx}-Test_MAE": round(test_result[1], 3),
                 })
+        round_end = time.time()
+        round_time = round_end - round_start
+        minutes = int(round_time // 60)
+        seconds = round_time % 60
+        print(f"Round {_round} Time: {minutes}m {round(seconds,2)}s")
+
+        if best_valid_loss > valid_result[0] and _round >= 20:
+            best_valid_loss = valid_result[0]
+
+            save_dict = {
+                "round": _round,
+                "global_model": global_model.state_dict(),
+                "local_model": local_weights,
+            }
+
+            torch.save(save_dict, 
+                       os.path.join(config.save_path, config.agg_method, 
+                                    f"{run_wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
 
         del train_result, valid_result, test_result
         torch.cuda.empty_cache()
@@ -94,7 +126,7 @@ def main(config):
     running_time = end-start
     minutes = int(running_time // 60)
     seconds = running_time % 60        
-    print(f"Total Running Time: {minutes}m {seconds}s")
+    print(f"Total Running Time: {minutes}m {round(seconds,2)}s")
 
     if not config.nowandb:
         run_wandb.log({'Running Time': running_time})

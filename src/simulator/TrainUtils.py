@@ -10,11 +10,12 @@ from tqdm import tqdm
 from src.metric.function import MAE, MSE
 
 
-def LocalUpdate(client_idx, global_model, TrainDataset_dict, config, device):
+def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, config, device):
     """
     Args:
         client_idx: int
         global_model: torch.nn.Module
+        learning_rate: float
         TrainDataset_dict: dict {client_idx: FLDataset}
         config: argparse.Namespace
         device: torch.device
@@ -30,9 +31,9 @@ def LocalUpdate(client_idx, global_model, TrainDataset_dict, config, device):
     local_model = deepcopy(global_model).to(device)
 
     if config.optimizer == 'adam':
-        optimizer = torch.optim.Adam(local_model.parameters(), lr=config.lr, weight_decay=1e-4)
+        optimizer = torch.optim.Adam(local_model.parameters(), lr=learning_rate)
     elif config.optimizer == 'sgd':
-        optimizer = torch.optim.SGD(local_model.parameters(), lr=config.lr, momentum=config.momentum)
+        optimizer = torch.optim.SGD(local_model.parameters(), lr=learning_rate, momentum=config.momentum)
        
     criterion = nn.MSELoss()
 
@@ -61,7 +62,7 @@ def LocalUpdate(client_idx, global_model, TrainDataset_dict, config, device):
                 loss = criterion(output.squeeze(), labels.squeeze()) + (proximal_mu / 2) * proximal_term
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(local_model.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(local_model.parameters(), max_norm=3.0)
             optimizer.step()
 
             epoch_loss += loss.item()
