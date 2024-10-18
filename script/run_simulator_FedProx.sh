@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mu_values=(1 5 10)
+mu_values=(0.001 0.01 0.1 1)
 
 for mu in "${mu_values[@]}"
 do
