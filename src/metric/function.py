@@ -43,13 +43,7 @@ def aggregate_result(result):
     - aggregated_mae (set): the aggregated MAE --> (train_mae, val_mae)
     """
 
-    client_idx = list(result.keys())
-
-    train_loss = np.array([result[client][0] for client in client_idx])
-    val_loss = np.array([result[client][1] for client in client_idx])
-    train_mae = np.array([result[client][2] for client in client_idx])
-    val_mae = np.array([result[client][3] for client in client_idx])
-
+    
     train_agg_loss = np.mean(train_loss)
     train_aggregated_mae = np.mean(train_mae)
 

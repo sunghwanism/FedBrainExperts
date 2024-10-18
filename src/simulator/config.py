@@ -27,15 +27,15 @@ def FLconfig():
 
     ####################### Train Configuration #######################
     # Train Arguments
-    parser.add_argument('--batch_size', type=int, default=80,
+    parser.add_argument('--batch_size', type=int, default=64,
                         help='Batch size')
-    parser.add_argument('--epochs', type=int, default=5,
+    parser.add_argument('--epochs', type=int, default=10,
                         help='Number of epochs per round')
-    parser.add_argument('--lr', type=float, default=1e-4,# 5e-6
+    parser.add_argument('--lr', type=float, default=5e-4,
                         help='Learning rate')
-    parser.add_argument('--optimizer', type=str, default='adam',
+    parser.add_argument('--optimizer', type=str, default='sgd',
                         help='Optimizer (sgd, adam)')
-    parser.add_argument('--momentum', type=float, default=0.5,
+    parser.add_argument('--momentum', type=float, default=0.9,
                         help='Momentum for SGD')
     
     # Federated Learning Arguments
@@ -54,6 +54,8 @@ def FLconfig():
                         help='Use Personalized Model')
     parser.add_argument('--proximal_mu', type=float, default=0.5,
                         help='Proximal term for FedProx')
+    parser.add_argument('--contrastive_temp', type=float, default=0.5,
+                        help='Contrastive temperature for MOON')
 
     ####################### MODEL Configuration ####################### 
 
@@ -73,7 +75,7 @@ def FLconfig():
     
     ####################### Wandb Configuration #######################
     # Wandb Arguments
-    parser.add_argument('--wandb_project', type=str, default='FL_thesis',
+    parser.add_argument('--wandb_project', type=str, default='FL_Thesis',
                         help='Wandb project')
     parser.add_argument('--wandb_entity', type=str, default='msh2044',
                         help='Wandb entity')

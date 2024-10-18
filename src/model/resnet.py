@@ -102,6 +102,12 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         
         self.fc = nn.Linear(18432 * block.expansion, out_dim)
+
+        self.represent_layer = nn.Sequential(
+                                            nn.Linear(18432 * block.expansion, 512),
+                                            nn.ReLU(),
+                                            nn.Linear(512, 256)
+                                        )
     
     def _make_layer(self, block, out_channels, blocks, stride=1):
         downsample = None
@@ -122,7 +128,7 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x, represent=False):
         # Forward pass through ResNet
         x = self.conv1(x)
         x = self.bn1(x)
@@ -133,11 +139,14 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-
         x = torch.flatten(x, 1)
-        x = self.fc(x)
 
-        return x
+        if represent: # for using MOON algorithm
+            rep = self.represent_layer(x)
+
+        x = self.fc(x)
+        
+        return x if not represent else (x, rep)
     
 
 

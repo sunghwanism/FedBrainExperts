@@ -15,9 +15,9 @@ class Aggregator:
         if self.agg_method == 'fedavg':
             self.FedAvg(local_weight, update_weight_per_client)
         elif self.agg_method == 'fedprox': # same with fedavg aggregation method
-            self.FedAvg(local_weight, update_weight_per_client)
-        elif self.agg_method == 'moon':
-            self.MOON(local_weight)
+            self.FedProx(local_weight, update_weight_per_client)
+        elif self.agg_method == 'moon': # same with fedavg aggregation method
+            self.MOON(local_weight, update_weight_per_client)
         elif self.agg_method == 'scaffold':
             self.SCAFFOLD(local_weight)
         elif self.agg_method == 'FedCKA':
@@ -43,9 +43,12 @@ class Aggregator:
 
         global_state_dict = {k: v / len(local_weight.keys()) for k, v in global_state_dict.items()}
         self.global_model.load_state_dict(global_state_dict)
+
+    def FedProx(self, local_weight, update_weight_per_client):
+        return self.FedAvg(local_weight, update_weight_per_client)
         
-    def MOON(self, local_weight, global_model):
-        pass
+    def MOON(self, local_weight, update_weight_per_client):
+        return self.FedAvg(local_weight, update_weight_per_client)
 
     def SCAFFOLD(self, local_weight, global_model):
         pass
