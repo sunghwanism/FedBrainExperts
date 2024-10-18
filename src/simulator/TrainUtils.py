@@ -241,11 +241,18 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         epoch_loss /= len(TrainLoader)
         mae /= len(TrainLoader)
         if not config.nowandb:
-            run_wandb.log({
-                "epoch": epoch,
-                "Train_Loss": epoch_loss,
-                'Train_MAE': mae,
-            })
+            if config.agg_method == 'Local':
+                run_wandb.log({
+                    "epoch": epoch,
+                    f"C{client_idx}-Train_Loss": epoch_loss,
+                    f'C{client_idx}-Train_MAE': mae,
+                })
+            elif config.agg_method == 'Center':
+                run_wandb.log({
+                    "epoch": epoch,
+                    "Train_Loss": epoch_loss,
+                    'Train_MAE': mae,
+                })
 
         # Validation
         mae = 0
@@ -265,11 +272,18 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         epoch_loss = epoch_loss / len(ValLoader)
         
         if not config.nowandb:
-            run_wandb.log({
-                "epoch": epoch,
-                "Valid_Loss": epoch_loss,
-                'Valid_MAE': mae,
-            })
+            if config.agg_method == 'Local':
+                run_wandb.log({
+                    "epoch": epoch,
+                    f"C{client_idx}-Valid_Loss": epoch_loss,
+                    f'C{client_idx}-Valid_MAE': mae,
+                })
+            elif config.agg_method == 'Center':
+                run_wandb.log({
+                    "epoch": epoch,
+                    "Valid_Loss": epoch_loss,
+                    'Valid_MAE': mae,
+                })
 
         if (mae < best_valid_MAE):
             best_valid_MAE = mae
