@@ -188,7 +188,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         optimizer = torch.optim.SGD(model.parameters(), lr=config.lr,
                                     momentum=config.momentum, weight_decay=0.00001)
     
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
     if config.agg_method == 'Local':
         TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict[client_idx], 
@@ -271,7 +271,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
                 'Valid_MAE': mae,
             })
 
-        if (mae < best_valid_MAE) and (epoch > 50):
+        if (mae < best_valid_MAE):
             best_valid_MAE = mae
             save_dict = {
                 "epoch": epoch,
