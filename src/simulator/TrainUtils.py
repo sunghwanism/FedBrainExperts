@@ -14,8 +14,11 @@ import torch
 import torch.nn as nn
 
 import pandas as pd
+import numpy as np
 from src.data.DataList import dataset_dict
-from src.simulator.utils import custom_collate_fn
+from src.simulator.utils import custom_collate_fn, get_key_by_value
+
+
 
 
 def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, config, device, prev_global_model=None):
@@ -207,15 +210,15 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
                                                 collate_fn=custom_collate_fn)
     
     criterion = nn.MSELoss()
-
-    progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=100)
     
     for epoch in range(config.epochs):
         epoch += 1
         model.train()
         mae = 0
         epoch_loss = 0
-
+        
+        progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=100)
+        
         for batch_idx, batch in progress_bar:
             images, labels = batch[0].to(device), batch[1].to(device)
             optimizer.zero_grad()
@@ -247,17 +250,20 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         # Validation
         mae = 0
         epoch_loss = 0
+        model.eval()
 
         for step, batch in enumerate(ValLoader):
-            images, labels = batch[0].to(device), batch[1].to(device)
-            output = model(images)
-            loss = criterion(output.squeeze(), labels.squeeze())
-            epoch_loss += loss.item()
-            mae += MAE(output.detach().cpu().numpy().squeeze(), 
-                        labels.detach().cpu().numpy().squeeze())
+            with torch.no_grad():
+                images, labels = batch[0].to(device), batch[1].to(device)
+                output = model(images)
+                loss = criterion(output.squeeze(), labels.squeeze())
+                epoch_loss += loss.item()
+                mae += MAE(output.detach().cpu().numpy().squeeze(), 
+                            labels.detach().cpu().numpy().squeeze())
             
         mae = mae / len(ValLoader)
         epoch_loss = epoch_loss / len(ValLoader)
+        
         if not config.nowandb:
             run_wandb.log({
                 "epoch": epoch,
@@ -265,7 +271,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
                 'Valid_MAE': mae,
             })
 
-        if mae < best_valid_MAE:
+        if (mae < best_valid_MAE) and (epoch > 50):
             best_valid_MAE = mae
             save_dict = {
                 "epoch": epoch,
@@ -328,12 +334,24 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
                 loss = criterion(output.squeeze(), labels.squeeze())
                 epoch_loss += loss.item()
                 mae += MAE(output.detach().cpu().numpy().squeeze(), 
-                            labels.detach().cpu().numpy().squeeze())
+                           labels.detach().cpu().numpy().squeeze())
                 
-                pred_age.extend(output.detach().cpu().numpy().squeeze())
-                true_age.extend(labels.detach().cpu().numpy().squeeze())
-                Subject_list.extend(Subject.squeeze())
-                Sex_list.extend(Sex.squeeze())
+                if output.size(0) > 1:
+                    output = output.detach().cpu().numpy().squeeze()
+                    labels = labels.detach().cpu().numpy().squeeze()
+                    Subject = np.array(Subject).squeeze()
+                    Sex = np.array(Sex).squeeze()
+                
+                else:
+                    output = output.detach().cpu().numpy()
+                    labels = labels.detach().cpu().numpy()
+                    Subject = np.array(Subject)
+                    Sex = np.array(Sex)
+                
+                pred_age.extend(output)
+                true_age.extend(labels)
+                Subject_list.extend(Subject)
+                Sex_list.extend(Sex)
 
         mae = mae / len(Loader)
         epoch_loss = epoch_loss / len(Loader)
@@ -352,5 +370,9 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
         
         result_df = pd.concat([result_df, temp_df], axis=0)
         
-    result_df.to_csv(os.path.join(config.save_path, config.agg_method,
-                                  f"C{str(client_idx).zfill(2)}_{dataset_dict[client_idx]}_result.csv"), index=False)
+    if config.agg_method == 'Local':
+        result_df.to_csv(os.path.join(config.save_path, config.agg_method,
+                                  f"C{str(client_idx).zfill(2)}_{get_key_by_value(dataset_dict, client_idx)}_result_local.csv"), index=False)
+    else:
+        result_df.to_csv(os.path.join(config.save_path, config.agg_method,
+                                  f"C{str(client_idx).zfill(2)}_{get_key_by_value(dataset_dict, client_idx)}_result_center.csv"), index=False)

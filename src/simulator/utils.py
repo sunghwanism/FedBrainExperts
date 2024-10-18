@@ -96,3 +96,6 @@ def custom_collate_fn(batch):
         return images, ages, subjects, sexes
     
     return images, ages
+
+def get_key_by_value(d, value):
+    return [key for key, val in d.items() if val == value][0]
