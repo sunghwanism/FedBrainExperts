@@ -15,6 +15,7 @@ import torch.nn as nn
 
 import pandas as pd
 from src.data.DataList import dataset_dict
+from src.simulator.utils import custom_collate_fn
 
 
 def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, config, device, prev_global_model=None):
@@ -196,16 +197,19 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
                                                 shuffle=False, num_workers=config.num_workers)
     elif config.agg_method == 'Center':
         TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict, 
-                                              batch_size=config.batch_size, 
-                                              shuffle=True, num_workers=config.num_workers)
+                                                  batch_size=config.batch_size, 
+                                                  shuffle=True, num_workers=config.num_workers,
+                                                  collate_fn=custom_collate_fn)
     
         ValLoader = torch.utils.data.DataLoader(ValDataset_dict,
                                                 batch_size=config.batch_size,
-                                                shuffle=False, num_workers=config.num_workers)
+                                                shuffle=False, num_workers=config.num_workers,
+                                                collate_fn=custom_collate_fn)
     
     criterion = nn.MSELoss()
-    progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=100)
 
+    progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=100)
+    
     for epoch in range(config.epochs):
         epoch += 1
         model.train()
@@ -216,7 +220,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
             images, labels = batch[0].to(device), batch[1].to(device)
             optimizer.zero_grad()
             output = model(images)
-            loss = criterion(output, labels)
+            loss = criterion(output.squeeze(), labels.squeeze())
             loss.backward()
             optimizer.step()
 
@@ -233,12 +237,12 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         lr_scheduler.step()
         epoch_loss /= len(TrainLoader)
         mae /= len(TrainLoader)
-        
-        run_wandb.log({
-            "epoch": epoch,
-            "Train_Loss": epoch_loss,
-            'Train_MAE': mae,
-        })
+        if not config.nowandb:
+            run_wandb.log({
+                "epoch": epoch,
+                "Train_Loss": epoch_loss,
+                'Train_MAE': mae,
+            })
 
         # Validation
         mae = 0
@@ -247,19 +251,19 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         for step, batch in enumerate(ValLoader):
             images, labels = batch[0].to(device), batch[1].to(device)
             output = model(images)
-            loss = criterion(output, labels)
+            loss = criterion(output.squeeze(), labels.squeeze())
             epoch_loss += loss.item()
             mae += MAE(output.detach().cpu().numpy().squeeze(), 
                         labels.detach().cpu().numpy().squeeze())
             
         mae = mae / len(ValLoader)
         epoch_loss = epoch_loss / len(ValLoader)
-
-        run_wandb.log({
-            "epoch": epoch,
-            "Valid_Loss": epoch_loss,
-            'Valid_MAE': mae,
-        })
+        if not config.nowandb:
+            run_wandb.log({
+                "epoch": epoch,
+                "Valid_Loss": epoch_loss,
+                'Valid_MAE': mae,
+            })
 
         if mae < best_valid_MAE:
             best_valid_MAE = mae
@@ -291,15 +295,18 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
     TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict[client_idx], 
                                               batch_size=config.batch_size, 
                                               shuffle=False, num_workers=config.num_workers,
+                                              collate_fn=custom_collate_fn
                                               )
     
     ValLoader = torch.utils.data.DataLoader(ValDataset_dict[client_idx],
                                             batch_size=config.batch_size,
-                                            shuffle=False, num_workers=config.num_workers)
+                                            shuffle=False, num_workers=config.num_workers,
+                                            collate_fn=custom_collate_fn)
     
     TestLoader = torch.utils.data.DataLoader(TestDataset_dict[client_idx],
                                              batch_size=config.batch_size, 
-                                             shuffle=False, num_workers=config.num_workers)
+                                             shuffle=False, num_workers=config.num_workers,
+                                             collate_fn=custom_collate_fn)
 
     Loaders = [TrainLoader, ValLoader, TestLoader]
     mode_list = ['Train', 'Valid', 'Test']
@@ -318,7 +325,7 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
             with torch.no_grad():
                 (images, labels, Subject, Sex) = batch[0].to(device), batch[1].to(device), batch[2], batch[3]
                 output = bestmodel(images)
-                loss = criterion(output, labels)
+                loss = criterion(output.squeeze(), labels.squeeze())
                 epoch_loss += loss.item()
                 mae += MAE(output.detach().cpu().numpy().squeeze(), 
                             labels.detach().cpu().numpy().squeeze())
@@ -331,7 +338,7 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
         mae = mae / len(Loader)
         epoch_loss = epoch_loss / len(Loader)
 
-        if config.nowandb:
+        if not config.nowandb:
             run_wandb.log({
                             f"Best-{_mode}_Loss (c{client_idx}|f{dataset_dict[client_idx]})": epoch_loss,
                             f'Best-{_mode}_MAE (c{client_idx}|f{dataset_dict[client_idx]})': mae,

@@ -85,3 +85,14 @@ def MergeClientDataset(DatasetDict, num_clients):
     merged_dataset = torch.utils.data.ConcatDataset([DatasetDict[i] for i in range(num_clients)])
 
     return merged_dataset
+
+def custom_collate_fn(batch):
+    images = torch.stack([item[0] for item in batch])
+    ages = torch.stack([item[1] for item in batch])
+    
+    if len(batch[0]) > 2:
+        subjects = [item[2] for item in batch]
+        sexes = [item[3] for item in batch]
+        return images, ages, subjects, sexes
+    
+    return images, ages

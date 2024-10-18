@@ -31,7 +31,7 @@ def LocalConfig():
                         help='Batch size')
     parser.add_argument('--epochs', type=int, default=10,
                         help='Number of epochs per round')
-    parser.add_argument('--lr', type=float, default=5e-4,
+    parser.add_argument('--lr', type=float, default=1e-5,
                         help='Learning rate')
     parser.add_argument('--optimizer', type=str, default='sgd',
                         help='Optimizer (sgd, adam)')
@@ -67,7 +67,7 @@ def LocalConfig():
     
     ####################### Wandb Configuration #######################
     # Wandb Arguments
-    parser.add_argument('--wandb_project', type=str, default='Local_Thesis',
+    parser.add_argument('--wandb_project', type=str, default='Center_Thesis',
                         help='Wandb project')
     parser.add_argument('--wandb_entity', type=str, default='msh2044',
                         help='Wandb entity')

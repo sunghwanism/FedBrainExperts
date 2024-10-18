@@ -26,6 +26,8 @@ def main(config):
 
     if not config.nowandb:
         run_wandb = init_wandb(config)
+    else:
+        run_wandb = None
 
     set_determinism(seed=config.seed)
     torch.backends.cudnn.benchmark = False
