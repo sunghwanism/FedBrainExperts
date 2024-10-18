@@ -79,3 +79,9 @@ def get_client_dataset(config, client_num, _mode, verbose=False, get_info=False,
         client_dataset_dict[client_idx] = client_dataset
 
     return client_dataset_dict
+
+
+def MergeClientDataset(DatasetDict, num_clients):
+    merged_dataset = torch.utils.data.ConcatDataset([DatasetDict[i] for i in range(num_clients)])
+
+    return merged_dataset
