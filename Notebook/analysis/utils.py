@@ -24,14 +24,11 @@ def load_model(model_name, modelPATH, config, device):
     model_dict = torch.load(PATH, map_location=device)
 
     global_model = generate_model(config).to(device)
-    global_model.load_state_dict(model_dict['global_model'], strict=False)
-    local_model_dict = model_dict['local_model']
+    if config.agg_method != ("Center" or "Local"):
+        global_model.load_state_dict(model_dict['global_model'], strict=False)
+        local_model_dict = model_dict['local_model']
+    else:
+        global_model.load_state_dict(model_dict, strict=False)
+        local_model_dict = None
 
     return global_model, local_model_dict
-
-
-def get_representation_hook(name):
-    def hook(model, input, output):
-        representations[name] = output.detach()
-
-    return hook
