@@ -372,8 +372,8 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
 
         if not config.nowandb:
             run_wandb.log({
-                            f"Best-{_mode}_Loss (c{client_idx}|f{dataset_dict[client_idx]})": epoch_loss,
-                            f'Best-{_mode}_MAE (c{client_idx}|f{dataset_dict[client_idx]})': mae,
+                            f"Best-{_mode}_Loss (c{client_idx}|f{get_key_by_value(dataset_dict, client_idx)})": epoch_loss,
+                            f'Best-{_mode}_MAE (c{client_idx}|f{get_key_by_value(dataset_dict, client_idx)})': mae,
                             })
             
         temp_df = pd.DataFrame({'Subject': Subject_list,

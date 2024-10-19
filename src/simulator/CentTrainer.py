@@ -64,7 +64,7 @@ def main(config):
         TrainDataset = MergeClientDataset(TrainDataset_dict, config.num_clients)
         ValDataset = MergeClientDataset(ValDataset_dict, config.num_clients)
 
-        bestmodel = LocalTrain(-1, TrainDataset, ValDataset, run_wandb, config, device)
+        bestmodel = LocalTrain(-1, TrainDataset, ValDataset, run_wandb, config, device,)
         local_train_time = time.time()-start
         total_train_time += local_train_time
 
