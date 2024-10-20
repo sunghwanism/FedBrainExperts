@@ -145,15 +145,15 @@ def custom_collate_fn(batch):
     return images, ages
 
 
-def get_client_result(client_idx, model_dict, TrainLoader, ValLoader, TestLoader, config, device, savepath, model_type_dict):
+def get_client_result(client_idx, model_dict, TrainLoader, ValLoader, TestLoader, device, savepath, model_type_dict):
     result_dict = {}
 
     for model_type, model in model_dict.items():
         result_dict[model_type] = None
 
         if model_type == 'Local':
-            model[client_idx].to(device)
-            model[client_idx].eval()
+            model = model[client_idx].to(device)
+            model.eval()
         else:
             model.to(device)
             model.eval()
@@ -215,26 +215,26 @@ def get_client_result(client_idx, model_dict, TrainLoader, ValLoader, TestLoader
             if _mode == 'Test':
                 result_dict[model_type] = mae
 
-        if not os.path.exists(os.path.join(savepath, config.agg_method)):
-            os.makedirs(os.path.join(savepath, config.agg_method))
-        
-        if not os.path.exists(os.path.join(savepath, config.agg_method, model_type_dict[model_type])):
-            os.makedirs(os.path.join(savepath, config.agg_method, model_type_dict[model_type]))
-
-        SAVEPATH = os.path.join(savepath, config.agg_method, model_type_dict[model_type])
-
-        data_name = get_key_by_value(dataset_dict, client_idx)
+            if not os.path.exists(os.path.join(savepath, model_type)):
+                os.makedirs(os.path.join(savepath, model_type))
             
-        if model_type == 'Local':
-            result_df.to_csv(os.path.join(SAVEPATH,
-                                          f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_local.csv"), index=False)
-        
-        elif model_type == 'Center':
-            result_df.to_csv(os.path.join(SAVEPATH,
-                                          f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_center.csv", index=False))
-        
-        else:
-            result_df.to_csv(os.path.join(SAVEPATH,
-                                          f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_{model_type}.csv", index=False ))
+            if not os.path.exists(os.path.join(savepath, model_type, model_type_dict[model_type])):
+                os.makedirs(os.path.join(savepath, model_type, model_type_dict[model_type]))
+
+            SAVEPATH = os.path.join(savepath, model_type, model_type_dict[model_type])
+
+            data_name = get_key_by_value(dataset_dict, client_idx)
+                
+            if model_type == 'Local':
+                result_df.to_csv(os.path.join(SAVEPATH,
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_local.csv"), index=False)
+            
+            elif model_type == 'Center':
+                result_df.to_csv(os.path.join(SAVEPATH,
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_center.csv"), index=False)
+            
+            else:
+                result_df.to_csv(os.path.join(SAVEPATH,
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_{model_type}.csv"), index=False)
 
     return result_dict
