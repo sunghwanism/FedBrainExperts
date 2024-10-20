@@ -68,8 +68,8 @@ class CKACalculator:
         curr_self_hsic_x = None
         curr_self_hsic_y = None
         for epoch in range(self.num_epochs):
-            loader = tqdm(self.dataloader, desc=f"Epoch {epoch}", disable=not self.is_main_process)
-            for it, (imgs, *_) in enumerate(loader):
+            # loader = tqdm(self.dataloader, desc=f"Epoch {epoch}", disable=not self.is_main_process)
+            for it, (imgs, *_) in enumerate(self.dataloader):
                 imgs = imgs.cuda(non_blocking=True)
                 self.model1(imgs)
                 self.model2(imgs)

@@ -38,7 +38,7 @@ class HookManager:
 
         if self.hook_fn is None:
             self.hook_fn = self.flatten_hook_fn
-            print("No hook function provided. Using flatten_hook_fn.")
+            # print("No hook function provided. Using flatten_hook_fn.")
         elif type(self.hook_fn) == str:
             hook_fn_dict = {'flatten': self.flatten_hook_fn, 'avgpool': self.avgpool_hook_fn}
             if self.hook_fn in hook_fn_dict:
@@ -75,13 +75,13 @@ class HookManager:
         for m in self.model.modules():
             if hasattr(m, 'module_name'):
                 delattr(m, 'module_name')
-        print(f"{num_handles} handles removed.")
+        # print(f"{num_handles} handles removed.")
 
     def register_hooks(self, hook_fn: Callable) -> None:
         prev_num_handles = len(self.handles)
         self._register_hook_recursive(self.model, hook_fn, prev_name="")
         new_num_handles = len(self.handles)
-        print(f"{new_num_handles - prev_num_handles} Hooks registered. Total hooks: {new_num_handles}")
+        # print(f"{new_num_handles - prev_num_handles} Hooks registered. Total hooks: {new_num_handles}")
 
     def _register_hook_recursive(self, module: nn.Module, hook_fn: Callable, prev_name: str = "") -> None:
         for name, child in module.named_children():

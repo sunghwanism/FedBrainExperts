@@ -33,7 +33,7 @@ def generate_model(opt):
 )
         elif opt.model_depth == 50:
             model = resnet.resnet50(
-                out_dim=opt.out_dim,
+                out_dim=opt.out_dim
 )
         elif opt.model_depth == 101:
             model = resnet.resnet101(

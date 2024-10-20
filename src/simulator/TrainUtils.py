@@ -188,7 +188,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         optimizer = torch.optim.SGD(model.parameters(), lr=config.lr,
                                     momentum=config.momentum, weight_decay=0.00001)
     
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
 
     if config.agg_method == 'Local':
         TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict[client_idx], 
@@ -237,7 +237,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
                                     "MSE_loss": round(epoch_loss / (batch_idx + 1), 3),
                                     "MAE_loss": round(mae / (batch_idx + 1), 3),
                                     })
-        lr_scheduler.step()
+        
         epoch_loss /= len(TrainLoader)
         mae /= len(TrainLoader)
         if not config.nowandb:
@@ -300,6 +300,8 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
                                                    f"Center_best_model.pth"))
             model.to(device)
             bestmodel = deepcopy(model)
+
+        lr_scheduler.step()
 
     return bestmodel
 

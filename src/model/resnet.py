@@ -15,8 +15,8 @@ def Conv3D(in_ch, out_ch, kernel_size=3, stride=1, padding=1):
 
 class BasicBlock(nn.Module):
     expansion = 1
-
     def __init__(self, in_ch, out_ch, stride=1, downsample=None):
+        self.expansion = 1
         super(BasicBlock, self).__init__()
         self.conv1 = Conv3D(in_ch, out_ch, stride=stride)
         self.bn1 = nn.BatchNorm3d(out_ch)
@@ -47,41 +47,42 @@ class BasicBlock(nn.Module):
     
 
 class Bottleneck(nn.Module):
-    
-        def __init__(self, in_ch, out_ch, stride=1, downsample=None):
-            super(Bottleneck, self).__init__()
-            self.conv1 = Conv3D(in_ch, out_ch, kernel_size=1)
-            self.bn1 = nn.BatchNorm3d(out_ch)
-            self.conv2 = Conv3D(out_ch, out_ch, kernel_size=3, stride=stride, padding=1)
-            self.bn2 = nn.BatchNorm3d(out_ch)
-            self.conv3 = Conv3D(out_ch, out_ch*4, kernel_size=1)
-            self.bn3 = nn.BatchNorm3d(out_ch*4)
-            self.relu = nn.ReLU(inplace=True)
-            self.downsample = downsample
-            self.stride = stride
-    
-    
-        def forward(self, x):
-            residual = x
-    
-            out = self.conv1(x)
-            out = self.bn1(out)
-            out = self.relu(out)
-    
-            out = self.conv2(out)
-            out = self.bn2(out)
-            out = self.relu(out)
-    
-            out = self.conv3(out)
-            out = self.bn3(out)
-    
-            if self.downsample is not None:
-                residual = self.downsample(x)
-    
-            out += residual
-            out = self.relu(out)
-    
-            return out
+    expansion = 4
+    def __init__(self, in_ch, out_ch, stride=1, downsample=None):
+        super(Bottleneck, self).__init__()
+        self.expansion = 4
+        self.conv1 = Conv3D(in_ch, out_ch, kernel_size=1)
+        self.bn1 = nn.BatchNorm3d(out_ch)
+        self.conv2 = Conv3D(out_ch, out_ch, kernel_size=3, stride=stride, padding=1)
+        self.bn2 = nn.BatchNorm3d(out_ch)
+        self.conv3 = Conv3D(out_ch, out_ch*4, kernel_size=1)
+        self.bn3 = nn.BatchNorm3d(out_ch*4)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
 
 
 
