@@ -51,16 +51,15 @@ class Bottleneck(nn.Module):
     def __init__(self, in_ch, out_ch, stride=1, downsample=None):
         super(Bottleneck, self).__init__()
         self.expansion = 4
-        self.conv1 = Conv3D(in_ch, out_ch, kernel_size=1)
+        self.conv1 = Conv3D(in_ch, out_ch, kernel_size=1, padding=0)
         self.bn1 = nn.BatchNorm3d(out_ch)
         self.conv2 = Conv3D(out_ch, out_ch, kernel_size=3, stride=stride, padding=1)
         self.bn2 = nn.BatchNorm3d(out_ch)
-        self.conv3 = Conv3D(out_ch, out_ch*4, kernel_size=1)
-        self.bn3 = nn.BatchNorm3d(out_ch*4)
+        self.conv3 = Conv3D(out_ch, out_ch*self.expansion, kernel_size=1, stride=1, padding=0)
+        self.bn3 = nn.BatchNorm3d(out_ch*self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
-
 
     def forward(self, x):
         residual = x
@@ -79,6 +78,9 @@ class Bottleneck(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(x)
 
+        if residual.shape != out.shape:
+            raise ValueError(f"Residual shape {residual.shape} does not match output shape {out.shape}")
+
         out += residual
         out = self.relu(out)
 
@@ -92,7 +94,7 @@ class ResNet(nn.Module):
         
         self.in_channels = 64
         
-        self.conv1 = nn.Conv3d(1, 64, kernel_size=7, stride=2, padding=3)
+        self.conv1 = nn.Conv3d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm3d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool3d(kernel_size=3, stride=2, padding=1)
@@ -105,9 +107,9 @@ class ResNet(nn.Module):
         self.fc = nn.Linear(18432 * block.expansion, out_dim)
 
         self.represent_layer = nn.Sequential(
-                                            nn.Linear(18432 * block.expansion, 512),
+                                            nn.Linear(18432 * block.expansion, 1024),
                                             nn.ReLU(),
-                                            nn.Linear(512, 256)
+                                            nn.Linear(1024, 512)
                                         )
     
     def _make_layer(self, block, out_channels, blocks, stride=1):
@@ -116,7 +118,7 @@ class ResNet(nn.Module):
         if stride != 1 or self.in_channels != out_channels * block.expansion:
             downsample = nn.Sequential(
                 nn.Conv3d(self.in_channels, out_channels * block.expansion, 
-                          kernel_size=1, stride=stride),
+                          kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm3d(out_channels * block.expansion),
             )
 
