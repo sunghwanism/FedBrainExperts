@@ -73,7 +73,7 @@ def main(config):
         _round += 1
         local_weights = {}
 
-        learning_rate *= 0.95 # learning rate scheduler
+        learning_rate *= 0.9995 # learning rate scheduler
     
         for client_idx in range(config.num_clients):
             print(f"#################################### Round {_round} | Client {client_idx} Training ####################################")

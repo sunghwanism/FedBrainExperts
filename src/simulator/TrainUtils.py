@@ -111,7 +111,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
                 loss = contrastive_loss + prd_loss
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(local_model.parameters(), max_norm=3.0)
+            # torch.nn.utils.clip_grad_norm_(local_model.parameters(), max_norm=5.0)
             optimizer.step()
 
             epoch_loss += loss.item()
