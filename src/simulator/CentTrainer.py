@@ -45,8 +45,9 @@ def main(config):
                                         _mode='test', verbose=False, 
                                         PATH=config.data_path,
                                         get_info=True)
-    run_name = wandb.run.name
+    
     if not config.nowandb:
+        run_name = wandb.run.name
         config_dict = vars(config)
         configPath = os.path.join(config.save_path, config.agg_method, f'config_{wandb.run.name}.json')
         with open(configPath, 'w') as f:
