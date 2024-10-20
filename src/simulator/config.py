@@ -18,7 +18,7 @@ def FLconfig():
     # Data
     # '/local_datasets/msh2044/FLData/'
     # '/NFS/Users/moonsh/data/FLData/'
-    parser.add_argument('--data_path', type=str, default=f'/local_datasets/msh2044/FLData/',
+    parser.add_argument('--data_path', type=str, default='/local_datasets/msh2044/FLData/',
                         help='Path to data')
     
     parser.add_argument('--crop_size',type=int, nargs='+', default=(96, 128, 96),)
@@ -65,13 +65,16 @@ def FLconfig():
                         help='Depth of model')
     parser.add_argument('--out_dim', type=int, default=1, # 1 for regression
                         help='Output dimension')
+    parser.add_argument('--personalized', action='store_true',
+                        help='Personalized model')
+    
 
     ####################### SAVE Configuration #######################
 
     # Save and Log Arguments
     # '/local_datasets/msh2044/AdaptFL/ckpt/'
     # '/NFS/Users/moonsh/AdaptFL/ckpt/'
-    parser.add_argument('--save_path', type=str, default=f'/local_datasets/msh2044/AdaptFL/ckpt/',
+    parser.add_argument('--save_path', type=str, default='/local_datasets/msh2044/AdaptFL/ckpt/',
                         help='Where to save the model')
     parser.add_argument('--local_log_interval', type=int, default=5,)
     

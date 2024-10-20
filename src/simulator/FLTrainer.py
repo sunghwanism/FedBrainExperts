@@ -68,25 +68,27 @@ def main(config):
 
     learning_rate = config.lr
 
+    local_weights = {}
+    prev_local_model = deepcopy(global_model).to(device)
+
     for _round in range(config.round):
         round_start = time.time()
         _round += 1
-        local_weights = {}
-
+    
         learning_rate *= 0.9995 # learning rate scheduler
     
         for client_idx in range(config.num_clients):
             print(f"#################################### Round {_round} | Client {client_idx} Training ####################################")
+            prev_local_model = deepcopy(global_model)
+
+            if _round > 1 :
+                prev_local_model.load_state_dict(local_weights[client_idx])
+
             local_model_weight = LocalUpdate(client_idx, global_model, learning_rate,
-                                             TrainDataset_dict, config, device, prev_global_model)
+                                             TrainDataset_dict, config, device, prev_local_model)
 
             local_weights[client_idx] = local_model_weight
-
-        if config.agg_method == 'MOON':
-            prev_global_model = deepcopy(global_model)
-        else:
-            prev_global_model = None
-
+        
         # Test the global model with Train, Validation and Test dataset
         global_model = aggregator.aggregate(local_weights, update_weight_per_client)
 
@@ -117,10 +119,6 @@ def main(config):
                     f"Client_{client_idx}-Test_Loss": round(test_result[0], 3),
                     f"Client_{client_idx}-Test_MAE": round(test_result[1], 3),
                 })
-
-        if config.agg_method == 'MOON':
-            prev_global_model = deepcopy(global_model)
-
 
         if (best_valid_MAE > valid_result[1] and _round >= 50) or (_round == 100) :
             best_valid_MAE = valid_result[1]
