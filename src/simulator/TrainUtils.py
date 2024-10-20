@@ -42,10 +42,10 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
     local_model = deepcopy(global_model).to(device)
 
     if config.optimizer == 'adam':
-        optimizer = torch.optim.Adam(local_model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(local_model.parameters(), lr=learning_rate, weight_decay=0.0001)
     elif config.optimizer == 'sgd':
         optimizer = torch.optim.SGD(local_model.parameters(), lr=learning_rate,
-                                    momentum=config.momentum, weight_decay=0.00001)
+                                    momentum=config.momentum, weight_decay=0.0001)
        
     criterion = nn.MSELoss()
 
@@ -176,19 +176,19 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
 
 
 
-def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config, device):
+def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config, device, run_name):
 
     model = generate_model(config).to(device)
 
     best_valid_MAE = float('inf')
 
     if config.optimizer == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=0.0001)
     elif config.optimizer == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(), lr=config.lr,
-                                    momentum=config.momentum, weight_decay=0.00001)
+                                    momentum=config.momentum, weight_decay=0.0001)
     
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9995)
 
     if config.agg_method == 'Local':
         TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict[client_idx], 
@@ -217,7 +217,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         mae = 0
         epoch_loss = 0
         
-        progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=100)
+        progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=120)
         
         for batch_idx, batch in progress_bar:
             images, labels = batch[0].to(device), batch[1].to(device)
@@ -240,6 +240,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         
         epoch_loss /= len(TrainLoader)
         mae /= len(TrainLoader)
+
         if not config.nowandb:
             if config.agg_method == 'Local':
                 run_wandb.log({
@@ -259,7 +260,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         epoch_loss = 0
         model.eval()
 
-        for step, batch in enumerate(ValLoader):
+        for _, batch in enumerate(ValLoader):
             with torch.no_grad():
                 images, labels = batch[0].to(device), batch[1].to(device)
                 output = model(images)
@@ -273,11 +274,13 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         
         if not config.nowandb:
             if config.agg_method == 'Local':
+
                 run_wandb.log({
                     "epoch": epoch,
                     f"C{client_idx}-Valid_Loss": epoch_loss,
                     f'C{client_idx}-Valid_MAE': mae,
                 })
+                
             elif config.agg_method == 'Center':
                 run_wandb.log({
                     "epoch": epoch,
@@ -294,10 +297,10 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
             }
             if config.agg_method == 'Local':
                 torch.save(save_dict, os.path.join(config.save_path, config.agg_method, 
-                                                   f"C{str(client_idx).zfill(2)}_best_model.pth"))
+                                                   f"C{str(client_idx).zfill(2)}_best_model_{run_name}.pth"))
             elif config.agg_method == 'Center':
                 torch.save(save_dict, os.path.join(config.save_path, config.agg_method, 
-                                                   f"Center_best_model.pth"))
+                                                   f"Center_best_model_{run_name}.pth"))
             model.to(device)
             bestmodel = deepcopy(model)
 
@@ -374,8 +377,8 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
 
         if not config.nowandb:
             run_wandb.log({
-                            f"Best-{_mode}_Loss (c{client_idx}|f{get_key_by_value(dataset_dict, client_idx)})": epoch_loss,
-                            f'Best-{_mode}_MAE (c{client_idx}|f{get_key_by_value(dataset_dict, client_idx)})': mae,
+                            f"Best-{_mode}_Loss (c{client_idx}|{get_key_by_value(dataset_dict, client_idx)})": epoch_loss,
+                            f'Best-{_mode}_MAE (c{client_idx}|{get_key_by_value(dataset_dict, client_idx)})': mae,
                             })
             
         temp_df = pd.DataFrame({'Subject': Subject_list,

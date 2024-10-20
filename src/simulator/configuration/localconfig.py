@@ -2,6 +2,7 @@
 import argparse
 
 
+
 def LocalConfig():
     parser = argparse.ArgumentParser()
 
@@ -11,11 +12,16 @@ def LocalConfig():
                         help='Random seed')
     
     # PATH
-    parser.add_argument('--base_path', type=str, default='/NFS/Users/moonsh/AdaptFL/',)
+    # '/local_datasets/msh2044/AdaptFL/'
+    # '/NFS/Users/moonsh/AdaptFL/'
+    parser.add_argument('--base_path', type=str, default='/local_datasets/msh2044/AdaptFL/',)
     
     # Data
-    parser.add_argument('--data_path', type=str, default=f'/NFS/Users/moonsh/data/FLData/', # same with LDM
+    # '/local_datasets/msh2044/FLData/'
+    # '/NFS/Users/moonsh/data/FLData/'
+    parser.add_argument('--data_path', type=str, default=f'/local_datasets/msh2044/FLData/',
                         help='Path to data')
+
     
     parser.add_argument('--crop_size',type=int, nargs='+', default=(96, 128, 96),)
     
@@ -29,7 +35,7 @@ def LocalConfig():
     # Train Arguments
     parser.add_argument('--batch_size', type=int, default=64,
                         help='Batch size')
-    parser.add_argument('--epochs', type=int, default=10,
+    parser.add_argument('--epochs', type=int, default=5,
                         help='Number of epochs per round')
     parser.add_argument('--lr', type=float, default=1e-5,
                         help='Learning rate')
@@ -53,7 +59,7 @@ def LocalConfig():
 
     parser.add_argument('--model', type=str, default='resnet',
                         help='Which model to use')
-    parser.add_argument('--model_depth', type=int, default=18,
+    parser.add_argument('--model_depth', type=int, default=34,
                         help='Depth of model')
     parser.add_argument('--out_dim', type=int, default=1, # 1 for regression
                         help='Output dimension')
@@ -61,14 +67,15 @@ def LocalConfig():
     ####################### SAVE Configuration #######################
 
     # Save and Log Arguments
-    parser.add_argument('--save_path', type=str, default=f'/NFS/Users/moonsh/AdaptFL/ckpt/',
+    # '/local_datasets/msh2044/AdaptFL/ckpt/'
+    # '/NFS/Users/moonsh/AdaptFL/ckpt/'
+    parser.add_argument('--save_path', type=str, default=f'/local_datasets/msh2044/AdaptFL/ckpt/',
                         help='Where to save the model')
     parser.add_argument('--local_log_interval', type=int, default=5,)
     
     ####################### Wandb Configuration #######################
     # Wandb Arguments
-    parser.add_argument('--wandb_project', type=str, default='Center_Thesis',
-                        help='Wandb project')
+    parser.add_argument('--wandb_project', type=str, help='Wandb project')
     parser.add_argument('--wandb_entity', type=str, default='msh2044',
                         help='Wandb entity')
     parser.add_argument('--nowandb', action='store_true',

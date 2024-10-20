@@ -45,7 +45,7 @@ def main(config):
                                         _mode='test', verbose=False, 
                                         PATH=config.data_path,
                                         get_info=True)
-
+    run_name = wandb.run.name
     if not config.nowandb:
         config_dict = vars(config)
         configPath = os.path.join(config.save_path, config.agg_method, f'config_{wandb.run.name}.json')
@@ -55,7 +55,7 @@ def main(config):
     if config.agg_method == 'Local':
 
         for client_idx in range(config.num_clients):
-            bestmodel = LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config, device)
+            bestmodel = LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config, device, run_name)
             local_train_time = time.time()-start
             total_train_time += local_train_time
 
@@ -64,12 +64,12 @@ def main(config):
         TrainDataset = MergeClientDataset(TrainDataset_dict, config.num_clients)
         ValDataset = MergeClientDataset(ValDataset_dict, config.num_clients)
 
-        bestmodel = LocalTrain(-1, TrainDataset, ValDataset, run_wandb, config, device,)
+        bestmodel = LocalTrain(-1, TrainDataset, ValDataset, run_wandb, config, device, run_name)
         local_train_time = time.time()-start
         total_train_time += local_train_time
 
-    for client_idx in range(config.num_clients):
-        SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, TestDataset_dict, run_wandb, config, device)
+    # for client_idx in range(config.num_clients):
+    #     SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, TestDataset_dict, run_wandb, config, device)
 
     if not config.nowandb:
         run_wandb.log({'Average Train Time': total_train_time/config.num_clients})
