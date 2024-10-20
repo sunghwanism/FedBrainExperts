@@ -41,10 +41,10 @@ def main(config):
                                         _mode='val', verbose=False, 
                                         get_info=True, PATH=config.data_path)
     
-    TestDataset_dict = get_client_dataset(config, config.num_clients, 
-                                        _mode='test', verbose=False, 
-                                        PATH=config.data_path,
-                                        get_info=True)
+    # TestDataset_dict = get_client_dataset(config, config.num_clients, 
+    #                                     _mode='test', verbose=False, 
+    #                                     PATH=config.data_path,
+    #                                     get_info=True)
     
     if not config.nowandb:
         run_name = wandb.run.name
