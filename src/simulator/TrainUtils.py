@@ -176,7 +176,7 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
 
 
 
-def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config, device, run_name):
+def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config, device, run_name=None):
 
     model = generate_model(config).to(device)
 

@@ -45,6 +45,7 @@ def main(config):
     #                                     _mode='test', verbose=False, 
     #                                     PATH=config.data_path,
     #                                     get_info=True)
+    run_name = None
     
     if not config.nowandb:
         run_name = wandb.run.name
