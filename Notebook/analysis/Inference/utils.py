@@ -235,6 +235,6 @@ def get_client_result(client_idx, model_dict, TrainLoader, ValLoader, TestLoader
         
         else:
             result_df.to_csv(os.path.join(SAVEPATH,
-                                          f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_{model_type}.csv"), index=False)
+                                          f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_{model_type}.csv", index=False ))
 
     return result_dict
