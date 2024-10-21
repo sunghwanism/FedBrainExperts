@@ -31,7 +31,7 @@ def FLconfig():
 
     ####################### Train Configuration #######################
     # Train Arguments
-    parser.add_argument('--batch_size', type=int, default=64,
+    parser.add_argument('--batch_size', type=int, default=42,
                         help='Batch size')
     parser.add_argument('--epochs', type=int, default=5,
                         help='Number of epochs per round')
@@ -52,10 +52,12 @@ def FLconfig():
                         help='Index of the dataset to use')
     parser.add_argument('--agg_method', type=str,
                         help='Aggregation method (FedAvg, FedProx, MOON, SCAFFOLD, FedCKA)')
-    parser.add_argument('--proximal_mu', type=float, default=0.5,
+    parser.add_argument('--proximal_mu', type=float, default=1,
                         help='Proximal term for FedProx')
-    parser.add_argument('--contrastive_temp', type=float, default=0.8,
+    parser.add_argument('--contrastive_temp', type=float, default=0.5,
                         help='Contrastive temperature for MOON')
+    parser.add_argument('--warmup', type=float, default=0,
+                        help='warmup for MOON')
 
     ####################### MODEL Configuration ####################### 
 
@@ -67,7 +69,6 @@ def FLconfig():
                         help='Output dimension')
     parser.add_argument('--personalized', action='store_true',
                         help='Personalized model')
-    
 
     ####################### SAVE Configuration #######################
 

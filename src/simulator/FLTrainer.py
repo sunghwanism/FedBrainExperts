@@ -46,17 +46,12 @@ def main(config):
                                          get_info=False, PATH=config.data_path)
 
     client_data_num_dict = {client_idx: len(TrainDataset_dict[client_idx]) for client_idx in range(config.num_clients)}
-    update_weight = [round(client_data_num_dict[client_idx]/sum(client_data_num_dict.values()), 2) for client_idx in range(config.num_clients)]
+    update_weight = [client_data_num_dict[client_idx]/sum(client_data_num_dict.values()) for client_idx in range(config.num_clients)]
     update_weight_per_client = {client_idx: update_weight[client_idx] for client_idx in range(config.num_clients)}
 
     # Model
     global_model = generate_model(config).to(device)
     aggregator = Aggregator(global_model, device, config)
-
-    if config.agg_method == 'MOON':
-        prev_global_model = deepcopy(global_model)
-    else:
-        prev_global_model = None
 
     best_valid_MAE = float('inf')
 
@@ -75,7 +70,7 @@ def main(config):
         round_start = time.time()
         _round += 1
     
-        learning_rate *= 0.9995 # learning rate scheduler
+        learning_rate *= 0.995 # learning rate scheduler
     
         for client_idx in range(config.num_clients):
             print(f"#################################### Round {_round} | Client {client_idx} Training ####################################")
@@ -85,7 +80,7 @@ def main(config):
                 prev_local_model.load_state_dict(local_weights[client_idx])
 
             local_model_weight = LocalUpdate(client_idx, global_model, learning_rate,
-                                             TrainDataset_dict, config, device, prev_local_model)
+                                             TrainDataset_dict, config, device, _round, prev_local_model)
 
             local_weights[client_idx] = local_model_weight
         

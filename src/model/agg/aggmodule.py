@@ -26,29 +26,25 @@ class Aggregator:
             raise NotImplementedError
         
         return self.global_model.to(self.device)
-
+        
     def FedAvg(self, local_weight, update_weight_per_client):
         self.global_model.cpu()
         global_state_dict = self.global_model.state_dict()
 
-        for k in global_state_dict.keys():
-            global_state_dict[k] = local_weight[0][k] # / update_weight_per_client[0]
-
         for client_idx, client_weights in local_weight.items():
-            if client_idx == 0:
-                continue
-
             for k in global_state_dict.keys():
-                global_state_dict[k] += client_weights[k] # / update_weight_per_client[client_idx]
+                if client_idx == 0:
+                    global_state_dict[k] = (client_weights[k] * update_weight_per_client[client_idx]).type(global_state_dict[k].dtype)
+                else:
+                    global_state_dict[k] += (client_weights[k] * update_weight_per_client[client_idx]).type(global_state_dict[k].dtype)
 
-        global_state_dict = {k: v / len(local_weight.keys()) for k, v in global_state_dict.items()}
         self.global_model.load_state_dict(global_state_dict)
 
     def FedProx(self, local_weight, update_weight_per_client):
-        return self.FedAvg(local_weight, update_weight_per_client)
+        self.FedAvg(local_weight, update_weight_per_client)
         
     def MOON(self, local_weight, update_weight_per_client):
-        return self.FedAvg(local_weight, update_weight_per_client)
+        self.FedAvg(local_weight, update_weight_per_client)
 
     def SCAFFOLD(self, local_weight, global_model):
         pass
