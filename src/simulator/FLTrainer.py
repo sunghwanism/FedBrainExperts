@@ -138,6 +138,11 @@ def main(config):
                                         # f"{wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
                                         f"{wandb.run.name}_best_model.pth"))
         if _round == 100:
+            save_dict = {
+                "round": _round,
+                "global_model": global_model.state_dict(),
+                "local_model": local_weights,
+            }
             if not config.nowandb:
                 torch.save(save_dict, 
                         os.path.join(config.save_path, config.agg_method, wandb.run.name,
