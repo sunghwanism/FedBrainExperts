@@ -10,7 +10,7 @@ from copy import deepcopy
 import json
         
 import torch.nn as nn
-from cka import CKACalculator
+from Notebook.analysis.represent.cka import CKACalculator
 import matplotlib.pyplot as plt
 from src.data.DataList import dataset_dict
 

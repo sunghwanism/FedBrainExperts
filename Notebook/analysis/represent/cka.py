@@ -5,6 +5,8 @@ Repo: https://github.com/numpee/CKA.pytorch
 Author: Dongwan Kim (Github: Numpee)
 Year: 2022
 """
+import sys
+sys.path.append('../../../')
 
 from __future__ import annotations
 
@@ -14,11 +16,10 @@ import torch
 import torch.nn as nn
 from tqdm.autonotebook import tqdm
 
-from hook_manager import HookManager, _HOOK_LAYER_TYPES
-from metrics import AccumTensor
+from Notebook.analysis.represent.hook_manager import HookManager, _HOOK_LAYER_TYPES
+from Notebook.analysis.represent.metrics import AccumTensor
 
-if TYPE_CHECKING:
-    from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader
 
 
 class CKACalculator:
