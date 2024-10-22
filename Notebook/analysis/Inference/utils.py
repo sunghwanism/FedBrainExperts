@@ -43,10 +43,10 @@ def load_model(model_name, modelPATH, config, device):
 
 
 def load_all_models(model_type_dict, basePATH, device, batch_size=128, num_workers=8):
-    
+    torch.cuda.set_device(device)
     result_dict = deepcopy(model_type_dict)
     
-    for _type, wandb_id in model_type_dict.items():
+    for _type, (wandb_id, best_round) in model_type_dict.items():
         print(f"Loading {_type} model named [{wandb_id}]")
         ckptPATH = os.path.join(basePATH, f"{_type}/{wandb_id}")
         config = load_config(ckptPATH, wandb_id)
@@ -56,28 +56,31 @@ def load_all_models(model_type_dict, basePATH, device, batch_size=128, num_worke
         config['nowandb'] = True
         config = argparse.Namespace(**config)
         
-        main_name = wandb_id.split('_')[0]
+        # main_name = wandb_id.split('_')[0]
         
         if _type == 'Center':
-            model_name = 'Center_best_model.pth'
+            model_name = f'Center_best_model_{wandb_id}.pth'
             glob_model, _ = load_model(model_name, ckptPATH, config, device)
             result_dict[_type] = glob_model.cpu()
+            glob_model.to(device)
         
         elif _type == 'Local':
             loc_model_list = []
             for i in range(config.num_clients):
-                model_name = f'C{str(i).zfill(2)}_best_model.pth'
+                model_name = f'C{str(i).zfill(2)}_best_model_{wandb_id}.pth'
                 client_model, _ = load_model(model_name, ckptPATH, config, device)
                 loc_model_list.append(client_model.cpu())
+                client_model.to(device)
             result_dict[_type] = loc_model_list
                 
         else:
-            model_name = f"{main_name}_best_round_100.pth"
+            # model_name = f"{main_name}_best_round_{str(best_round).zfill(3)}.pth"
+            model_name = f"{wandb_id}_best_model.pth"
             glob_model, _ = load_model(model_name, ckptPATH, config, device)
             result_dict[_type] = glob_model.cpu()
+            glob_model.to(device)
     
     return result_dict, config
-
 
 def load_all_client_loader(config, _mode='test'):
     if _mode == 'test':
@@ -218,23 +221,35 @@ def get_client_result(client_idx, model_dict, TrainLoader, ValLoader, TestLoader
             if not os.path.exists(os.path.join(savepath, model_type)):
                 os.makedirs(os.path.join(savepath, model_type))
             
-            if not os.path.exists(os.path.join(savepath, model_type, model_type_dict[model_type])):
-                os.makedirs(os.path.join(savepath, model_type, model_type_dict[model_type]))
+            if not os.path.exists(os.path.join(savepath, model_type, model_type_dict[model_type][0])):
+                os.makedirs(os.path.join(savepath, model_type, model_type_dict[model_type][0]))
 
-            SAVEPATH = os.path.join(savepath, model_type, model_type_dict[model_type])
+            SAVEPATH = os.path.join(savepath, model_type, model_type_dict[model_type][0])
 
             data_name = get_key_by_value(dataset_dict, client_idx)
+            result_df = result_df.applymap(convert_to_float)
                 
             if model_type == 'Local':
                 result_df.to_csv(os.path.join(SAVEPATH,
-                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_local.csv"), index=False)
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type][0]}_local.csv"), index=False)
             
             elif model_type == 'Center':
                 result_df.to_csv(os.path.join(SAVEPATH,
-                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_center.csv"), index=False)
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type][0]}_center.csv"), index=False)
             
             else:
                 result_df.to_csv(os.path.join(SAVEPATH,
-                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type]}_{model_type}.csv"), index=False)
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type][0]}_{model_type}.csv"), index=False)
 
     return result_dict
+
+
+def convert_to_float(value):
+    try:
+        # If it's a list (like [39.02573]), extract the float
+        if isinstance(value, str) and value.startswith('[') and value.endswith(']'):
+            return float(value.strip('[]'))
+        # Try converting directly to float otherwise
+        return float(value)
+    except ValueError:
+        return value  # If it can't be converted, return as is (handle error case)

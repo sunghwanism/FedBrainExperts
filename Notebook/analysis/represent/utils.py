@@ -45,7 +45,7 @@ def load_all_models(model_type_dict, basePATH, device, batch_size=128, num_worke
     torch.cuda.set_device(device)
     result_dict = deepcopy(model_type_dict)
     
-    for _type, wandb_id in model_type_dict.items():
+    for _type, (wandb_id, best_round) in model_type_dict.items():
         print(f"Loading {_type} model named [{wandb_id}]")
         ckptPATH = os.path.join(basePATH, f"{_type}/{wandb_id}")
         config = load_config(ckptPATH, wandb_id)
@@ -55,10 +55,10 @@ def load_all_models(model_type_dict, basePATH, device, batch_size=128, num_worke
         config['nowandb'] = True
         config = argparse.Namespace(**config)
         
-        main_name = wandb_id.split('_')[0]
+        # main_name = wandb_id.split('_')[0]
         
         if _type == 'Center':
-            model_name = 'Center_best_model.pth'
+            model_name = f'Center_best_model_{wandb_id}.pth'
             glob_model, _ = load_model(model_name, ckptPATH, config, device)
             result_dict[_type] = glob_model.cpu()
             glob_model.to(device)
@@ -66,14 +66,15 @@ def load_all_models(model_type_dict, basePATH, device, batch_size=128, num_worke
         elif _type == 'Local':
             loc_model_list = []
             for i in range(config.num_clients):
-                model_name = f'C{str(i).zfill(2)}_best_model.pth'
+                model_name = f'C{str(i).zfill(2)}_best_model_{wandb_id}.pth'
                 client_model, _ = load_model(model_name, ckptPATH, config, device)
                 loc_model_list.append(client_model.cpu())
                 client_model.to(device)
             result_dict[_type] = loc_model_list
                 
         else:
-            model_name = f"{main_name}_best_round_100.pth"
+            # model_name = f"{main_name}_best_round_{str(best_round).zfill(3)}.pth"
+            model_name = f"{wandb_id}_best_model.pth"
             glob_model, _ = load_model(model_name, ckptPATH, config, device)
             result_dict[_type] = glob_model.cpu()
             glob_model.to(device)
