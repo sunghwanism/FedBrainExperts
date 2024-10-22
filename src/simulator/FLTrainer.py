@@ -15,7 +15,6 @@ from utils import generate_model, init_wandb, get_client_dataset
 from config import FLconfig
 from TrainUtils import LocalUpdate, inference
 from model.agg.aggmodule import Aggregator
-from src.metric.function import MAE, aggregate_result
 
 
 def main(config):
@@ -31,6 +30,13 @@ def main(config):
 
     set_determinism(seed=config.seed)
     torch.backends.cudnn.benchmark = False
+
+    if not os.path.exists(config.save_path):
+        os.makedirs(config.save_path)
+        if not os.path.exists(os.path.join(config.save_path, config.agg_method)):
+            os.makedirs(os.path.join(config.save_path, config.agg_method))
+            if not os.path.exists(os.path.join(config.save_path, config.agg_method, wandb.run.name)):
+                os.makedirs(os.path.join(config.save_path, config.agg_method, wandb.run.name))
 
     # DataLoader
     TrainDataset_dict = get_client_dataset(config, config.num_clients, 
@@ -57,7 +63,7 @@ def main(config):
 
     if not config.nowandb:
         config_dict = vars(config)
-        configPath = os.path.join(config.save_path, config.agg_method, f'config_{wandb.run.name}.json')
+        configPath = os.path.join(config.save_path, config.agg_method, wandb.run.name,f'config_{wandb.run.name}.json')
         with open(configPath, 'w') as f:
             json.dump(config_dict, f, indent=4)
 
@@ -70,7 +76,7 @@ def main(config):
         round_start = time.time()
         _round += 1
     
-        learning_rate *= 0.995 # learning rate scheduler
+        learning_rate *= 0.9995 # learning rate scheduler
     
         for client_idx in range(config.num_clients):
             print(f"#################################### Round {_round} | Client {client_idx} Training ####################################")
@@ -83,6 +89,9 @@ def main(config):
                                              TrainDataset_dict, config, device, _round, prev_local_model)
 
             local_weights[client_idx] = local_model_weight
+
+            del local_model_weight, prev_local_model
+            torch.cuda.empty_cache()
         
         # Test the global model with Train, Validation and Test dataset
         global_model = aggregator.aggregate(local_weights, update_weight_per_client)
@@ -106,7 +115,6 @@ def main(config):
             if not config.nowandb:
                 run_wandb.log({
                     "round": _round,
-                    'Client': client_idx,
                     f"Client_{client_idx}-Train_Loss": round(train_result[0], 3),
                     f"Client_{client_idx}-Train_MAE": round(train_result[1], 3),
                     f"Client_{client_idx}-Valid_Loss": round(valid_result[0], 3),
@@ -115,7 +123,7 @@ def main(config):
                     f"Client_{client_idx}-Test_MAE": round(test_result[1], 3),
                 })
 
-        if (best_valid_MAE > valid_result[1] and _round >= 50) or (_round == 100) :
+        if (best_valid_MAE > valid_result[1] and _round >= 40) or (_round == 100) :
             best_valid_MAE = valid_result[1]
 
             save_dict = {
@@ -126,10 +134,12 @@ def main(config):
 
             if not config.nowandb:
                 torch.save(save_dict, 
-                        os.path.join(config.save_path, config.agg_method, 
-                                        f"{wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
+                        os.path.join(config.save_path, config.agg_method, wandb.run.name,
+                                        # f"{wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
+                                        f"{wandb.run.name}_best_model.pth"))
                 
             del save_dict
+            torch.cuda.empty_cache()
 
         del train_result, valid_result, test_result
         torch.cuda.empty_cache()

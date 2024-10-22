@@ -1,10 +1,10 @@
 
 dataset_dict = {
                 "HCP": 0, # YA v
-                "SLIM": 1, # YA v
+                "NKI-RK": 1, # lifepsan v
                 "UCLA-CNP": 2, # YA+OA v
                 "OAS3": 3, # OA
-                "ADNI": 4, # OA
+                "JBNU": 4, # lifespan v
                 "SALD": 5, # lifespan v
                 "CamCAN": 6, # lifespan v
                 "DecNef": 7, # lifespan v

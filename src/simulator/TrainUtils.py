@@ -20,7 +20,6 @@ from src.simulator.utils import custom_collate_fn, get_key_by_value
 
 
 
-
 def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, config, device, _round, prev_local_model=None):
     """
     Args:
