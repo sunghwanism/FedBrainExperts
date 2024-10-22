@@ -48,9 +48,16 @@ def main(config):
     run_name = None
     
     if not config.nowandb:
+        if not os.path.exists(config.save_path):
+            os.makedirs(config.save_path)
+        if not os.path.exists(os.path.join(config.save_path, config.agg_method)):
+            os.makedirs(os.path.join(config.save_path, config.agg_method))
+        if not os.path.exists(os.path.join(config.save_path, config.agg_method, wandb.run.name)):
+            os.makedirs(os.path.join(config.save_path, config.agg_method, wandb.run.name))
+
         run_name = wandb.run.name
         config_dict = vars(config)
-        configPath = os.path.join(config.save_path, config.agg_method, f'config_{wandb.run.name}.json')
+        configPath = os.path.join(config.save_path, config.agg_method, run_name, f'config_{wandb.run.name}.json')
         with open(configPath, 'w') as f:
             json.dump(config_dict, f, indent=4)
 

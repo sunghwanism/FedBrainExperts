@@ -119,6 +119,8 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
 
             elif config.agg_method == 'FedRepCKA':
                 pass
+            
+
 
             loss.backward()
             optimizer.step()
@@ -311,10 +313,10 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
                 "model": model.cpu().state_dict(),
             }
             if config.agg_method == 'Local':
-                torch.save(save_dict, os.path.join(config.save_path, config.agg_method, 
+                torch.save(save_dict, os.path.join(config.save_path, config.agg_method, run_name,
                                                    f"C{str(client_idx).zfill(2)}_best_model_{run_name}.pth"))
             elif config.agg_method == 'Center':
-                torch.save(save_dict, os.path.join(config.save_path, config.agg_method, 
+                torch.save(save_dict, os.path.join(config.save_path, config.agg_method, run_name,
                                                    f"Center_best_model_{run_name}.pth"))
             model.to(device)
             bestmodel = deepcopy(model)

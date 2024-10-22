@@ -27,16 +27,16 @@ def main(config):
 
     if not config.nowandb:
         run_wandb = init_wandb(config)
+        if not os.path.exists(config.save_path):
+            os.makedirs(config.save_path)
+        if not os.path.exists(os.path.join(config.save_path, config.agg_method)):
+            os.makedirs(os.path.join(config.save_path, config.agg_method))
+        if not os.path.exists(os.path.join(config.save_path, config.agg_method, wandb.run.name)):
+            os.makedirs(os.path.join(config.save_path, config.agg_method, wandb.run.name))
 
     set_determinism(seed=config.seed)
     torch.backends.cudnn.benchmark = False
 
-    if not os.path.exists(config.save_path):
-        os.makedirs(config.save_path)
-    if not os.path.exists(os.path.join(config.save_path, config.agg_method)):
-        os.makedirs(os.path.join(config.save_path, config.agg_method))
-    if not os.path.exists(os.path.join(config.save_path, config.agg_method, wandb.run.name)):
-        os.makedirs(os.path.join(config.save_path, config.agg_method, wandb.run.name))
 
     # DataLoader
     TrainDataset_dict = get_client_dataset(config, config.num_clients, 
@@ -63,7 +63,7 @@ def main(config):
 
     if not config.nowandb:
         config_dict = vars(config)
-        configPath = os.path.join(config.save_path, config.agg_method, wandb.run.name,f'config_{wandb.run.name}.json')
+        configPath = os.path.join(config.save_path, config.agg_method, wandb.run.name, f'config_{wandb.run.name}.json')
         with open(configPath, 'w') as f:
             json.dump(config_dict, f, indent=4)
 
