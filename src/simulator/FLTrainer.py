@@ -123,7 +123,7 @@ def main(config):
                     f"Client_{client_idx}-Test_MAE": round(test_result[1], 3),
                 })
 
-        if (best_valid_MAE > valid_result[1] and _round >= 40) or (_round == 100) :
+        if (best_valid_MAE > valid_result[1] and _round >= 40):
             best_valid_MAE = valid_result[1]
 
             save_dict = {
@@ -137,6 +137,12 @@ def main(config):
                         os.path.join(config.save_path, config.agg_method, wandb.run.name,
                                         # f"{wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
                                         f"{wandb.run.name}_best_model.pth"))
+        if _round == 100:
+            if not config.nowandb:
+                torch.save(save_dict, 
+                        os.path.join(config.save_path, config.agg_method, wandb.run.name,
+                                        # f"{wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
+                                        f"{wandb.run.name}_round100_model.pth"))
                 
             del save_dict
             torch.cuda.empty_cache()
