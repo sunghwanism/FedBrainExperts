@@ -33,10 +33,10 @@ def main(config):
 
     if not os.path.exists(config.save_path):
         os.makedirs(config.save_path)
-        if not os.path.exists(os.path.join(config.save_path, config.agg_method)):
-            os.makedirs(os.path.join(config.save_path, config.agg_method))
-            if not os.path.exists(os.path.join(config.save_path, config.agg_method, wandb.run.name)):
-                os.makedirs(os.path.join(config.save_path, config.agg_method, wandb.run.name))
+    if not os.path.exists(os.path.join(config.save_path, config.agg_method)):
+        os.makedirs(os.path.join(config.save_path, config.agg_method))
+    if not os.path.exists(os.path.join(config.save_path, config.agg_method, wandb.run.name)):
+        os.makedirs(os.path.join(config.save_path, config.agg_method, wandb.run.name))
 
     # DataLoader
     TrainDataset_dict = get_client_dataset(config, config.num_clients, 
