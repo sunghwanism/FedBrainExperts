@@ -51,3 +51,9 @@ class Aggregator:
 
     def FedCKA(self, local_weight, global_model):
         pass
+
+    def FedRep(self, local_weight, global_model):
+        pass
+
+    def FedRepCKA(self, local_weight, global_model):
+        pass
