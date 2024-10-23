@@ -131,27 +131,27 @@ class RepResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x, represent=False):
+    def forward(self, x, imp_w):
         # Forward pass through ResNet
-        x = self.conv1(x)
+        x = self.conv1(x)   
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
 
         x = self.layer1(x)
+        x = self.imp_w[0] * x
         x = self.layer2(x)
+        x = self.imp_w[1] * x
         x = self.layer3(x)
+        x = self.imp_w[2] * x
         x = self.layer4(x)
+        x = self.imp_w[3] * x
         x = torch.flatten(x, 1)
-
-        if represent: # for using MOON algorithm
-            rep = self.represent_layer(x)
 
         x = self.fc(x)
         
-        return x if not represent else (x, rep)
+        return x
     
-
 
 def Represnet10(**kwargs):
     """Constructs a ResNet-18 model.

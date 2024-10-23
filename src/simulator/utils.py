@@ -8,13 +8,14 @@ from torch import nn
 import wandb
 
 from src.model import resnet
+from src.model import RepResNet
 from src.data.DataList import dataset_dict
 from src.data.FLDataset import FLDataset
 
 
 def generate_model(opt):
     assert opt.model in [
-        'resnet', # 'preresnet', 'wideresnet', 'resnext', 'densenet'
+        'resnet', 'RepResNet'
     ]
 
     if opt.model == 'resnet':
@@ -47,7 +48,20 @@ def generate_model(opt):
             model = resnet.resnet200(
                 out_dim=opt.out_dim,
 )
+    elif opt.model == 'RepResNet':
+        assert opt.model_depth in [10, 18, 34, 50, 101]
+        if opt.model_depth == 10:
+            model = RepResNet.Represnet10(out_dim=opt.out_dim,)
 
+        elif opt.model_depth == 18:
+            model = RepResNet.Represnet18(
+                out_dim=opt.out_dim,)
+        elif opt.model_depth == 34:
+            model = RepResNet.Represnet34(
+                out_dim=opt.out_dim,)
+        elif opt.model_depth == 50:
+            model = RepResNet.Represnet50(
+                out_dim=opt.out_dim)
     return model
 
 
@@ -99,3 +113,48 @@ def custom_collate_fn(batch):
 
 def get_key_by_value(d, value):
     return [key for key, val in d.items() if val == value][0]
+
+
+def get_activation(model_name, layer_name):
+    def hook(module, input, output):
+        activation[model_name][layer_name] = output.detach()
+    return hook
+
+
+def register_hooks_for_model(model, model_name):
+    hooks = []
+    for name, layer in model.named_modules():
+        if (isinstance(layer, nn.Conv3d) or isinstance(layer, nn.Linear)) and ('downsample' not in name):
+            hook = layer.register_forward_hook(get_activation(model_name, name))
+            hooks.append(hook)
+    return hooks
+
+def remove_hooks(hooks):
+    for hook in hooks:
+        hook.remove()
+
+def get_activation(local_model, glob_model, img):
+    loc_result = []
+    glob_result = []
+    target_layer = ['layer1.2.conv2', 'layer2.3.conv2', 'layer3.5.conv2','layer4.2.conv2']
+
+    activation={'Local': {},'Global': {}}
+    hooks_model_a = register_hooks_for_model(local_model, 'Local')
+    hooks_model_b = register_hooks_for_model(glob_model, 'Global')
+
+    loc_rep = local_model(img)
+    glob_rep = glob_model(img)
+
+    for (layer_name, loc_output), glob_output in zip(activation['Local'].items(), activation['Global'].values()):
+        if layer_name in target_layer:
+            loc_result.append(loc_output)
+            glob_result.append(glob_output)
+
+    remove_hooks(hooks_model_a)
+    remove_hooks(hooks_model_b)
+
+    return loc_result, glob_result
+
+            
+
+                

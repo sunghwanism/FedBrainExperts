@@ -17,6 +17,7 @@ import pandas as pd
 import numpy as np
 from src.data.DataList import dataset_dict
 from src.simulator.utils import custom_collate_fn, get_key_by_value
+from src.model.KLIEP import KLIEP
 
 
 
@@ -65,6 +66,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
         mae = 0
         epoch_const_loss = 0
         epoch_pred_loss = 0
+
         if config.agg_method == 'MOON':
             progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=130)
         else:
@@ -74,14 +76,18 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
             images, labels = batch[0].to(device), batch[1].to(device)
 
             optimizer.zero_grad()
-            output = local_model(images)
 
             if config.agg_method == 'FedAvg':
+
+                output = local_model(images)
                 loss = criterion(output.squeeze(), labels.squeeze())
 
             elif config.agg_method == 'FedProx':
+
                 proximal_term = 0
                 proximal_mu = config.proximal_mu
+                output = local_model(images)
+
                 for local_w, glob_w in zip(local_model.parameters(), _global_model.parameters()):
                     proximal_term += torch.square((local_w - glob_w).norm(2))
 
@@ -116,11 +122,16 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
                     pred_loss = criterion(output.squeeze(), labels.squeeze())
                     loss = pred_loss
 
-
             elif config.agg_method == 'FedRepCKA':
-                pass
-            
+                with torch.no_grad():
+                    loc_rep_list, glob_rep_list = get_activation(local_model, global_model, images)
+                importance_weight_list = kliep.fit(loc_rep_list, glob_rep_list)
 
+                importance_weight_list = torch.tensor(importance_weight_list, requires_grad=False).to(device)
+                
+                output = local_model(images, importance_weight_list)
+
+                loss = criterion(output.squeeze(), labels.squeeze())
 
             loss.backward()
             optimizer.step()
