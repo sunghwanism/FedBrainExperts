@@ -12,14 +12,14 @@ def LocalConfig():
                         help='Random seed')
     
     # PATH
-    # '/local_datasets/msh2044/AdaptFL/'
+    # '/data/msh2044/AdaptFL/'
     # '/NFS/Users/moonsh/AdaptFL/'
-    parser.add_argument('--base_path', type=str, default='/local_datasets/msh2044/AdaptFL/',)
+    parser.add_argument('--base_path', type=str, default='/data/msh2044/AdaptFL/',)
     
     # Data
     # '/local_datasets/msh2044/FLData/'
     # '/NFS/Users/moonsh/data/FLData/'
-    parser.add_argument('--data_path', type=str, default=f'/local_datasets/msh2044/FLData/',
+    parser.add_argument('--data_path', type=str, default='/local_datasets/msh2044/FLData/',
                         help='Path to data')
 
     
@@ -67,9 +67,9 @@ def LocalConfig():
     ####################### SAVE Configuration #######################
 
     # Save and Log Arguments
-    # '/local_datasets/msh2044/AdaptFL/ckpt/'
+    # '/data/msh2044/AdaptFL/ckpt/'
     # '/NFS/Users/moonsh/AdaptFL/ckpt/'
-    parser.add_argument('--save_path', type=str, default=f'/local_datasets/msh2044/AdaptFL/ckpt/',
+    parser.add_argument('--save_path', type=str, default='/data/msh2044/AdaptFL/ckpt/',
                         help='Where to save the model')
     parser.add_argument('--local_log_interval', type=int, default=5,)
     
