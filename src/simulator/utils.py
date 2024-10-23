@@ -15,7 +15,7 @@ from src.data.FLDataset import FLDataset
 
 def generate_model(opt):
     assert opt.model in [
-        'resnet', 'RepResNet'
+        'resnet', 'FedKLIEP'
     ]
 
     if opt.model == 'resnet':
@@ -48,7 +48,7 @@ def generate_model(opt):
             model = resnet.resnet200(
                 out_dim=opt.out_dim,
 )
-    elif opt.model == 'RepResNet':
+    elif opt.agg_method == 'FedKLIEP':
         assert opt.model_depth in [10, 18, 34, 50, 101]
         if opt.model_depth == 10:
             model = RepResNet.Represnet10(out_dim=opt.out_dim,)
@@ -142,8 +142,8 @@ def get_activation(local_model, glob_model, img):
     hooks_model_a = register_hooks_for_model(local_model, 'Local')
     hooks_model_b = register_hooks_for_model(glob_model, 'Global')
 
-    loc_rep = local_model(img)
-    glob_rep = glob_model(img)
+    _ = local_model(img)
+    _ = glob_model(img)
 
     for (layer_name, loc_output), glob_output in zip(activation['Local'].items(), activation['Global'].values()):
         if layer_name in target_layer:
@@ -152,6 +152,9 @@ def get_activation(local_model, glob_model, img):
 
     remove_hooks(hooks_model_a)
     remove_hooks(hooks_model_b)
+
+    del activation, hooks_model_a, hooks_model_b,
+    torch.cuda.empty_cache()
 
     return loc_result, glob_result
 

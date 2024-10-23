@@ -51,13 +51,18 @@ def FLconfig():
                         default=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
                         help='Index of the dataset to use')
     parser.add_argument('--agg_method', type=str,
-                        help='Aggregation method (FedAvg, FedProx, MOON, SCAFFOLD, FedCKA)')
+                        help='Aggregation method (FedAvg, FedProx, MOON, SCAFFOLD, FedCKA, FedKLIEP)')
     parser.add_argument('--proximal_mu', type=float, default=1,
                         help='Proximal term for FedProx')
     parser.add_argument('--contrastive_temp', type=float, default=0.5,
                         help='Contrastive temperature for MOON')
     parser.add_argument('--warmup', type=float, default=0,
                         help='warmup for MOON')
+    
+
+    # KLIEP Arguments
+    parser.add_argument('--kliep', action='store_true',
+                        help='Use KLIEP')
 
     ####################### MODEL Configuration ####################### 
 

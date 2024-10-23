@@ -16,7 +16,7 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from src.data.DataList import dataset_dict
-from src.simulator.utils import custom_collate_fn, get_key_by_value
+from src.simulator.utils import custom_collate_fn, get_key_by_value, get_activation
 from src.model.KLIEP import KLIEP
 
 
@@ -122,13 +122,13 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
                     pred_loss = criterion(output.squeeze(), labels.squeeze())
                     loss = pred_loss
 
-            elif config.agg_method == 'FedRepCKA':
+            elif config.agg_method == 'FedKLIEP':
+                kliep = KLIEP(bandwidth=config.bandwidth, device=device, steps=config.steps, lr=config.kliep_lr, verbose=False)
                 with torch.no_grad():
                     loc_rep_list, glob_rep_list = get_activation(local_model, global_model, images)
                 importance_weight_list = kliep.fit(loc_rep_list, glob_rep_list)
 
                 importance_weight_list = torch.tensor(importance_weight_list, requires_grad=False).to(device)
-                
                 output = local_model(images, importance_weight_list)
 
                 loss = criterion(output.squeeze(), labels.squeeze())
