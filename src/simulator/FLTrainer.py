@@ -22,6 +22,9 @@ def main(config):
     total_train_time = 0
     start = time.time()
 
+    if config.agg_method == 'FedKLIEP':
+        assert config.model == 'RepResNet', 'Only RepResNet is available for FedKLIEP'
+
     torch.cuda.set_device(config.device_id)
     device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -70,13 +73,14 @@ def main(config):
     learning_rate = config.lr
 
     local_weights = {}
+    imp_w_dict = {client_idx: [1,1,1,1] for client_idx in range(config.num_clients)}
     prev_local_model = deepcopy(global_model).to(device)
 
     for _round in range(config.round):
         round_start = time.time()
         _round += 1
     
-        learning_rate *= 0.9995 # learning rate scheduler
+        learning_rate *= 0.995 # learning rate scheduler
     
         for client_idx in range(config.num_clients):
             print(f"#################################### Round {_round} | Client {client_idx} Training ####################################")
@@ -85,10 +89,12 @@ def main(config):
             if _round > 1 :
                 prev_local_model.load_state_dict(local_weights[client_idx])
 
-            local_model_weight = LocalUpdate(client_idx, global_model, learning_rate,
-                                             TrainDataset_dict, config, device, _round, prev_local_model)
+            local_model_weight, imp_w_list = LocalUpdate(client_idx, global_model, learning_rate,
+                                                         TrainDataset_dict, config, device, _round, prev_local_model,
+                                                         imp_w_list=imp_w_dict[client_idx])
 
             local_weights[client_idx] = local_model_weight
+            imp_w_dict[client_idx] = imp_w_list
 
             del local_model_weight, prev_local_model
             torch.cuda.empty_cache()
@@ -106,11 +112,11 @@ def main(config):
 
         for client_idx in range(config.num_clients):
             train_result = inference(client_idx, global_model, local_weights, 
-                                    TrainDataset_dict, config, device)
+                                    TrainDataset_dict, config, device, imp_w_dict[client_idx])
             valid_result = inference(client_idx, global_model, local_weights, 
-                                    ValDataset_dict, config, device)
+                                    ValDataset_dict, config, device, imp_w_dict[client_idx])
             test_result = inference(client_idx, global_model, local_weights, 
-                                    TestDataset_dict, config, device)
+                                    TestDataset_dict, config, device, imp_w_dict[client_idx])
 
             if not config.nowandb:
                 run_wandb.log({
@@ -125,12 +131,20 @@ def main(config):
 
         if (best_valid_MAE > valid_result[1] and _round >= 40):
             best_valid_MAE = valid_result[1]
+            if config.agg_method == 'FedKLIEP':
+                save_dict = {
+                    "round": _round,
+                    "global_model": global_model.state_dict(),
+                    "local_model": local_weights,
+                    "imp_w_list": imp_w_list,
+                }
 
-            save_dict = {
-                "round": _round,
-                "global_model": global_model.state_dict(),
-                "local_model": local_weights,
-            }
+            else:
+                save_dict = {
+                    "round": _round,
+                    "global_model": global_model.state_dict(),
+                    "local_model": local_weights,
+                }
 
             if not config.nowandb:
                 torch.save(save_dict, 
@@ -138,11 +152,19 @@ def main(config):
                                         # f"{wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
                                         f"{wandb.run.name}_best_model.pth"))
         if _round == 100:
-            save_dict = {
-                "round": _round,
-                "global_model": global_model.state_dict(),
-                "local_model": local_weights,
-            }
+            if config.agg_method == 'FedKLIEP':
+                save_dict = {
+                    "round": _round,
+                    "global_model": global_model.state_dict(),
+                    "local_model": local_weights,
+                    "imp_w_list": imp_w_list,
+                }
+            else:
+                save_dict = {
+                    "round": _round,
+                    "global_model": global_model.state_dict(),
+                    "local_model": local_weights,}
+                
             if not config.nowandb:
                 torch.save(save_dict, 
                         os.path.join(config.save_path, config.agg_method, wandb.run.name,

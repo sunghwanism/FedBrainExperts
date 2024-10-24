@@ -35,7 +35,7 @@ def FLconfig():
                         help='Batch size')
     parser.add_argument('--epochs', type=int, default=5,    
                         help='Number of epochs per round')
-    parser.add_argument('--lr', type=float, default=1e-6,
+    parser.add_argument('--lr', type=float, default=1e-5,
                         help='Learning rate')
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='Optimizer (sgd, adam)')
@@ -61,8 +61,15 @@ def FLconfig():
     
 
     # KLIEP Arguments
-    parser.add_argument('--kliep', action='store_true',
-                        help='Use KLIEP')
+    parser.add_argument('--bandwidth', type=float, default=1,
+                        help='Bandwidth for KLIEP')
+    parser.add_argument('--kliep_lr', type=float, default=1e-2,
+                        help='Learning rate for KLIEP')
+    parser.add_argument('--kliep_steps', type=int, default=500,
+                        help='Number of epochs for KLIEP')
+    parser.add_argument('--kliep_img_size', type=float, default=10, # -1 means all
+                        help='Batch size for KLIEP')
+                        
 
     ####################### MODEL Configuration ####################### 
 

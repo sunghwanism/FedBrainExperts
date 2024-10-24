@@ -20,8 +20,10 @@ class Aggregator:
             self.MOON(local_weight, update_weight_per_client)
         elif self.agg_method == 'scaffold':
             self.SCAFFOLD(local_weight)
-        elif self.agg_method == 'FedCKA':
+        elif self.agg_method == 'fedcka':
             self.FedCKA(local_weight)
+        elif self.agg_method == 'fedkliep':
+            self.FedKLIEP(local_weight, update_weight_per_client)
         else:
             raise NotImplementedError
         
@@ -57,3 +59,6 @@ class Aggregator:
 
     def FedRepCKA(self, local_weight, global_model):
         pass
+
+    def FedKLIEP(self, local_weight, update_weight_per_client):
+        self.FedAvg(local_weight, update_weight_per_client)

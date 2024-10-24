@@ -139,13 +139,13 @@ class RepResNet(nn.Module):
         x = self.maxpool(x)
 
         x = self.layer1(x)
-        x = self.imp_w[0] * x
+        x = imp_w[0] * x
         x = self.layer2(x)
-        x = self.imp_w[1] * x
+        x = imp_w[1] * x
         x = self.layer3(x)
-        x = self.imp_w[2] * x
+        x = imp_w[2] * x
         x = self.layer4(x)
-        x = self.imp_w[3] * x
+        x = imp_w[3] * x
         x = torch.flatten(x, 1)
 
         x = self.fc(x)
