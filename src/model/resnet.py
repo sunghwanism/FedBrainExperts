@@ -107,9 +107,9 @@ class ResNet(nn.Module):
         self.fc = nn.Linear(18432 * block.expansion, out_dim)
 
         self.represent_layer = nn.Sequential(
-                                            nn.Linear(18432 * block.expansion, 1024),
+                                            nn.Linear(18432 * block.expansion, 2048),
                                             nn.ReLU(),
-                                            nn.Linear(1024, 512)
+                                            nn.Linear(2048, 1024)
                                         )
     
     def _make_layer(self, block, out_channels, blocks, stride=1):
