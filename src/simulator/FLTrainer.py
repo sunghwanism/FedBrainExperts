@@ -185,8 +185,9 @@ def main(config):
                 del save_dict
                 torch.cuda.empty_cache()
 
-        del train_result, valid_result, test_result
-        torch.cuda.empty_cache()
+        if _round == 1 or _round % 2 == 0:
+            del train_result, valid_result, test_result
+            torch.cuda.empty_cache()
 
     end = time.time()
 
