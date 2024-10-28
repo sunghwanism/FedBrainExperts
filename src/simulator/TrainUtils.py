@@ -73,7 +73,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
         epoch_sub_loss = 0
         epoch_mse = 0
         epoch_mae = 0
-        progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=140)
+        progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=150)
         
         for batch_idx, batch in progress_bar:
             images, labels = batch[0].to(device), batch[1].to(device)
@@ -174,16 +174,16 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
                 progress_bar.set_postfix({
                                         "Client": client_idx,
                                         "[Train] epoch": epoch+1,
-                                        "MSE_loss": round(epoch_loss / (batch_idx + 1), 3),
-                                        "MAE_loss": round(epoch_mae / (batch_idx + 1), 3),
+                                        "MSELoss": round(epoch_loss / (batch_idx + 1), 3),
+                                        "MAELoss": round(epoch_mae / (batch_idx + 1), 3),
                                         })
                 
             else:
                 progress_bar.set_postfix({
                                         "Client": client_idx,
                                         "[Train] epoch": epoch+1,
-                                        "MSE_loss": round(epoch_loss / (batch_idx + 1), 3),
-                                        "MAE_loss": round(epoch_mae / (batch_idx + 1), 3),
+                                        "MSELoss": round(epoch_loss / (batch_idx + 1), 3),
+                                        "MAELoss": round(epoch_mae / (batch_idx + 1), 3),
                                         })
 
     del _global_model, prev_local_model
@@ -204,7 +204,6 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
                                              shuffle=False, num_workers=config.num_workers)
     
     global_model.eval()
-    local_model.eval()
 
     criterion = nn.MSELoss()
     mae = 0
