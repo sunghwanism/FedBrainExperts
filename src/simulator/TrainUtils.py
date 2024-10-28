@@ -21,7 +21,8 @@ from src.model.KLIEP import KLIEP
 
 
 
-def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, config, device, _round, prev_local_model=None,
+def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, 
+                config, device, _round, prev_local_model=None,
                 imp_w_list=None):
     """
     Args:
@@ -64,7 +65,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
     if config.agg_method == 'FedKLIEP':
         kliep = KLIEP(bandwidth=config.bandwidth, device=device, steps=config.kliep_steps, 
                       lr=config.kliep_lr, verbose=True)
-        kliep.importance_weight_list = imp_w_list
+        kliep.importance_weight_list = imp_w_list[client_idx]
 
     for epoch in range(config.epochs):
         local_model.train()
@@ -203,6 +204,8 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
                                              shuffle=False, num_workers=config.num_workers)
     
     global_model.eval()
+    local_model.eval()
+
     criterion = nn.MSELoss()
     mae = 0
     test_loss = 0
@@ -212,17 +215,17 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
         local_model.load_state_dict(local_weight[client_idx])
         local_model.eval()
 
-    for step, batch in enumerate(TestLoader):
+    for _, batch in enumerate(TestLoader):
         images, labels = batch[0].to(device), batch[1].to(device)
 
         if config.personalized:
             if config.agg_method == 'FedKLIEP':
-                output = local_model(images, imp_w_list)
+                output = local_model(images, imp_w_list[client_idx])
             else:
                 output = local_model(images)
         else:
             if config.agg_method == 'FedKLIEP':
-                output = global_model(images, imp_w_list)
+                output = global_model(images, imp_w_list[client_idx])
             else:
                 output = global_model(images)
 

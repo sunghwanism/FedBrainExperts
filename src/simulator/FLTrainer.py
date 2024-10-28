@@ -72,9 +72,17 @@ def main(config):
 
     learning_rate = config.lr
 
+    if config.agg_method == 'FedKLIEP':
+        imp_w_dict = {client_idx: [1,1,1,1] for client_idx in range(config.num_clients)}
+    else:
+        imp_w_dict = None
+
     local_weights = {}
-    imp_w_dict = {client_idx: [1,1,1,1] for client_idx in range(config.num_clients)}
-    prev_local_model = deepcopy(global_model).to(device)
+
+    if config.agg_method == 'MOON':
+        prev_local_model = deepcopy(global_model).to(device)
+    else:
+        prev_local_model = None
 
     for _round in range(config.round):
         round_start = time.time()
@@ -84,17 +92,21 @@ def main(config):
     
         for client_idx in range(config.num_clients):
             print(f"#################################### Round {_round} | Client {client_idx} Training ####################################")
-            prev_local_model = deepcopy(global_model)
+            
 
             if _round > 1 :
-                prev_local_model.load_state_dict(local_weights[client_idx])
+                if config.agg_method == 'MOON':
+                    prev_local_model = deepcopy(global_model)
+                    prev_local_model.load_state_dict(local_weights[client_idx])
 
             local_model_weight, imp_w_list = LocalUpdate(client_idx, global_model, learning_rate,
                                                          TrainDataset_dict, config, device, _round, prev_local_model,
-                                                         imp_w_list=imp_w_dict[client_idx])
+                                                         imp_w_list=imp_w_dict)
 
             local_weights[client_idx] = local_model_weight
-            imp_w_dict[client_idx] = imp_w_list
+
+            if config.agg_method == 'FedKLIEP':
+                imp_w_dict[client_idx] = imp_w_list
 
             del local_model_weight, prev_local_model
             torch.cuda.empty_cache()
@@ -112,11 +124,11 @@ def main(config):
 
         for client_idx in range(config.num_clients):
             train_result = inference(client_idx, global_model, local_weights, 
-                                    TrainDataset_dict, config, device, imp_w_dict[client_idx])
+                                    TrainDataset_dict, config, device, imp_w_dict)
             valid_result = inference(client_idx, global_model, local_weights, 
-                                    ValDataset_dict, config, device, imp_w_dict[client_idx])
+                                    ValDataset_dict, config, device, imp_w_dict)
             test_result = inference(client_idx, global_model, local_weights, 
-                                    TestDataset_dict, config, device, imp_w_dict[client_idx])
+                                    TestDataset_dict, config, device, imp_w_dict)
 
             if not config.nowandb:
                 run_wandb.log({
@@ -149,7 +161,6 @@ def main(config):
             if not config.nowandb:
                 torch.save(save_dict, 
                         os.path.join(config.save_path, config.agg_method, wandb.run.name,
-                                        # f"{wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
                                         f"{wandb.run.name}_best_model.pth"))
         if _round == 100:
             if config.agg_method == 'FedKLIEP':
@@ -168,7 +179,6 @@ def main(config):
             if not config.nowandb:
                 torch.save(save_dict, 
                         os.path.join(config.save_path, config.agg_method, wandb.run.name,
-                                        # f"{wandb.run.name}_best_round_{str(_round).zfill(3)}.pth"))
                                         f"{wandb.run.name}_round100_model.pth"))
                 
             del save_dict
