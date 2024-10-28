@@ -35,7 +35,7 @@ def FLconfig():
                         help='Batch size')
     parser.add_argument('--epochs', type=int, default=5,    
                         help='Number of epochs per round')
-    parser.add_argument('--lr', type=float, default=1e-5,
+    parser.add_argument('--lr', type=float, default=3e-6,
                         help='Learning rate')
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='Optimizer (sgd, adam)')

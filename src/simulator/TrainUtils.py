@@ -52,7 +52,6 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
     criterion = nn.MSELoss()
 
     if config.agg_method == 'MOON':
-        contrastive_temp = config.contrastive_temp
         prev_local_model.eval()
         for param in prev_local_model.parameters():
             param.requires_grad = False
@@ -61,22 +60,19 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
 
         cos = torch.nn.CosineSimilarity(dim=-1)
         const_loss = torch.nn.CrossEntropyLoss().cuda()
-        
+
     if config.agg_method == 'FedKLIEP':
-        kliep = KLIEP(bandwidth=config.bandwidth, device=device, steps=config.kliep_steps, lr=config.kliep_lr, verbose=True)
+        kliep = KLIEP(bandwidth=config.bandwidth, device=device, steps=config.kliep_steps, 
+                      lr=config.kliep_lr, verbose=True)
         kliep.importance_weight_list = imp_w_list
 
     for epoch in range(config.epochs):
         local_model.train()
         epoch_loss = 0
-        mae = 0
-        epoch_const_loss = 0
-        epoch_pred_loss = 0
-
-        if config.agg_method == 'MOON':
-            progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=130)
-        else:
-            progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=100)
+        epoch_sub_loss = 0
+        epoch_mse = 0
+        epoch_mae = 0
+        progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=140)
         
         for batch_idx, batch in progress_bar:
             images, labels = batch[0].to(device), batch[1].to(device)
@@ -86,92 +82,99 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
             if config.agg_method == 'FedAvg':
 
                 output = local_model(images)
-                loss = criterion(output.squeeze(), labels.squeeze())
+                mse_loss = criterion(output.squeeze(), labels.squeeze())
+                loss = mse_loss
 
             elif config.agg_method == 'FedProx':
 
-                proximal_term = 0
-                proximal_mu = config.proximal_mu
+                proximal_loss = 0
                 output = local_model(images)
 
                 for local_w, glob_w in zip(local_model.parameters(), _global_model.parameters()):
-                    proximal_term += torch.square((local_w - glob_w).norm(2))
+                    proximal_loss += torch.square((local_w - glob_w).norm(2))
 
-                loss = criterion(output.squeeze(), labels.squeeze()) + (proximal_mu / 2) * proximal_term
+                mse_loss = criterion(output.squeeze(), labels.squeeze())
+                prox_loss = config.proximal_mu * proximal_loss
+
+                loss =  mse_loss + prox_loss
 
             elif config.agg_method == 'MOON':
 
-                if _round > config.warmup:
+                output, represent_local = local_model(images, represent=True)
+                _, represent_global = _global_model(images, represent=True)
+                
+                pos_sim = cos(represent_local, represent_global).reshape(-1, 1)
 
-                    output, represent_local = local_model(images, represent=True)
-                    _, represent_global = _global_model(images, represent=True)
-                    
-                    pos_sim = cos(represent_local, represent_global).reshape(-1, 1)
+                prev_local_model.to(device)
+                with torch.no_grad():
+                    _, represent_prev_local = prev_local_model(images, represent=True)
 
-                    prev_local_model.to(device)
+                neg_sim = cos(represent_local, represent_prev_local).reshape(-1, 1)
+                logits = torch.cat((pos_sim, neg_sim), dim=1) / config.contrastive_temp
+                const_labels = torch.zeros(logits.size(0)).to(device).long()
 
-                    with torch.no_grad():
-                        _, represent_prev_local = prev_local_model(images, represent=True)
-
-                    neg_sim = cos(represent_local, represent_prev_local).reshape(-1, 1)
-                    logits = torch.cat((pos_sim, neg_sim), dim=1) / contrastive_temp
-                    const_labels = torch.zeros(logits.size(0)).to(device).long()
-
-                    prev_local_model.to("cpu")
-                    
-                    contrastive_loss = config.proximal_mu * const_loss(logits, const_labels)
-                    pred_loss = criterion(output.squeeze(), labels.squeeze())
-                    loss = contrastive_loss + pred_loss
-                    
-                else:
-                    output = local_model(images, represent=False)
-                    pred_loss = criterion(output.squeeze(), labels.squeeze())
-                    loss = pred_loss
+                prev_local_model.to("cpu")
+                
+                contrastive_loss = config.proximal_mu * const_loss(logits, const_labels)
+                mse_loss = criterion(output.squeeze(), labels.squeeze())
+                loss = contrastive_loss + mse_loss
 
             elif config.agg_method == 'FedKLIEP':
-                if _round > config.warmup:
-                    with torch.no_grad():
-                        (loc_rep_list, glob_rep_list, 
-                         loc_hooks, glob_hooks) = get_activation_for_models(local_model, global_model, images)
-                    
-                    kliep.fit(loc_rep_list, glob_rep_list)
+                with torch.no_grad():
+                    (loc_rep_list, glob_rep_list, 
+                        loc_hooks, glob_hooks) = get_activation_for_models(local_model, global_model, images)
+                
+                kliep.fit(loc_rep_list, glob_rep_list)
 
-                    for l_hook, g_hook in zip(loc_hooks, glob_hooks):
-                        l_hook.remove()
-                        g_hook.remove()
+                for l_hook, g_hook in zip(loc_hooks, glob_hooks):
+                    l_hook.remove()
+                    g_hook.remove()
 
-                    del loc_rep_list, glob_rep_list
-                    torch.cuda.empty_cache()
+                del loc_rep_list, glob_rep_list
+                torch.cuda.empty_cache()
 
-                    output = local_model(images, kliep.importance_weight_list)
-
-                else:
-                    output = local_model(images, kliep.importance_weight_list)
-
-            loss = criterion(output.squeeze(), labels.squeeze())
+                output = local_model(images, kliep.importance_weight_list)
+                mse_loss = criterion(output.squeeze(), labels.squeeze())
+                loss = mse_loss
 
             loss.backward()
             optimizer.step()
 
             epoch_loss += loss.item()
+            epoch_mae += MAE(output.detach().cpu().numpy().squeeze(), labels.detach().cpu().numpy().squeeze())
+            epoch_mse = mse_loss.item()
+            
 
             if config.agg_method == 'MOON':
-                if _round > config.warmup:
-                    epoch_const_loss += contrastive_loss.item()
-                else:
-                    epoch_const_loss = 0
-                epoch_pred_loss += pred_loss.item()
+                epoch_sub_loss += contrastive_loss.item()
+            elif config.agg_method == 'FedProx':
+                epoch_sub_loss += prox_loss.item()
 
-            mae += MAE(output.detach().cpu().numpy().squeeze(), 
-                             labels.detach().cpu().numpy().squeeze())
             
             if config.agg_method == 'MOON':
                 progress_bar.set_postfix({
                                         "Client": client_idx,
                                         "[Train] epoch": epoch+1,
-                                        "pred_loss": round(epoch_pred_loss / (batch_idx+1), 3),
-                                        "cont_loss": round(epoch_const_loss / (batch_idx+1), 3),
-                                        "MAE_loss": round(mae / (batch_idx + 1), 3),
+                                        "MSELoss": round(epoch_mse / (batch_idx+1), 3),
+                                        "ContsLoss": round(epoch_sub_loss / (batch_idx+1), 3),
+                                        "MAELoss": round(epoch_mae / (batch_idx+1), 3),
+                                        })
+                
+            elif config.agg_method == 'FedProx':
+                progress_bar.set_postfix({
+                                        "Client": client_idx,
+                                        "[Train] epoch": epoch+1,
+                                        "MSELoss": round(epoch_mse / (batch_idx+1), 3),
+                                        "ProxLoss": round(epoch_sub_loss / (batch_idx+1), 3),
+                                        "MAELoss": round(epoch_mae / (batch_idx+1), 3),
+                                        })
+            
+            elif config.agg_method == 'FedKLIEP':
+                progress_bar.set_postfix({
+                                        "Client": client_idx,
+                                        "[Train] epoch": epoch+1,
+                                        "MSE_loss": round(epoch_loss / (batch_idx + 1), 3),
+                                        "MAE_loss": round(epoch_mae / (batch_idx + 1), 3),
                                         })
                 
             else:
@@ -179,16 +182,18 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, conf
                                         "Client": client_idx,
                                         "[Train] epoch": epoch+1,
                                         "MSE_loss": round(epoch_loss / (batch_idx + 1), 3),
-                                        "MAE_loss": round(mae / (batch_idx + 1), 3),
+                                        "MAE_loss": round(epoch_mae / (batch_idx + 1), 3),
                                         })
 
     del _global_model, prev_local_model
     torch.cuda.empty_cache()
 
+
     if config.agg_method == 'FedKLIEP':
-        return local_model.cpu().state_dict(), kliep.importance_weight_list#.cpu().detach().numpy()
+        return local_model.cpu().state_dict(), kliep.importance_weight_list
     else:
         return local_model.cpu().state_dict(), None
+
 
 
 def inference(client_idx, global_model, local_weight, TestDataset_dict, config, device, imp_w_list):
@@ -449,3 +454,73 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
     else:
         result_df.to_csv(os.path.join(config.save_path, config.agg_method,
                                   f"C{str(client_idx).zfill(2)}_{get_key_by_value(dataset_dict, client_idx)}_result_center.csv"), index=False)
+
+
+
+# def batch_train(image, label, loc_model, config,  device, prev_loc_model=None, glob_model=None, kliep=None):
+#     loc_model.train()
+#     criterion = nn.MSELoss()
+
+#     if config.agg_method == 'FedAvg':
+        
+#         output = loc_model(image)
+#         loss = criterion(output.squeeze(), label.squeeze())
+        
+#     elif config.agg_method == 'FedProx':
+#         proxloss = 0
+#         proxmu = config.proximal_mu
+
+#         output = loc_model(image)
+
+#         for loc_w, glob_w in zip(loc_model.parameters(), glob_model.parameters()):
+#             proxloss += torch.square((loc_w - glob_w).norm(2))
+        
+#         loss = criterion(output.squeeze(), label.squeeze()) + proxmu * proxloss
+        
+#         return loss, proxloss
+        
+
+#     elif config.agg_method == 'MOON':
+#         contrastive_temp = config.contrastive_temp
+
+#         cos = torch.nn.CosineSimilarity(dim=-1)
+#         const_loss = torch.nn.CrossEntropyLoss().cuda()
+        
+#         output, represent_local = loc_model(image, represent=True)
+#         _, represent_global = glob_model(image, represent=True)
+
+#         pos_sim = cos(represent_local, represent_global).reshape(-1, 1)
+
+#         prev_loc_model.to(device)
+    
+#         with torch.no_grad():
+#             _, represent_prev_local = prev_loc_model(image, represent=True)
+
+#         neg_sim = cos(represent_local, represent_prev_local).reshape(-1, 1)
+#         logits = torch.cat((pos_sim, neg_sim), dim=1) / contrastive_temp
+#         const_labels = torch.zeros(logits.size(0)).to(device).long()
+
+#         prev_loc_model.to("cpu")
+        
+#         contrastive_loss = config.proximal_mu * const_loss(logits, const_labels)
+#         mse_loss = criterion(output.squeeze(), label.squeeze())
+
+#         loss = contrastive_loss + mse_loss
+    
+#     elif config.agg_method == 'FedKLIEP':
+#         with torch.no_grad():
+#             (loc_rep_list, glob_rep_list, 
+#                 loc_hooks, glob_hooks) = get_activation_for_models(loc_model, glob_model, image)
+            
+#             kliep.fit(loc_rep_list, glob_rep_list)
+
+#             for l_hook, g_hook in zip(loc_hooks, glob_hooks):
+#                 l_hook.remove()
+#                 g_hook.remove()
+
+#             del loc_rep_list, glob_rep_list
+#             torch.cuda.empty_cache()
+
+#         output = loc_model(image, kliep.importance_weight_list)
+
+#         loss = criterion(output.squeeze(), label.squeeze())

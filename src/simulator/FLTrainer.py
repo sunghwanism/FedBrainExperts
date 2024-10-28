@@ -80,7 +80,7 @@ def main(config):
         round_start = time.time()
         _round += 1
     
-        learning_rate *= 0.995 # learning rate scheduler
+        # learning_rate *= 0.995 # learning rate scheduler
     
         for client_idx in range(config.num_clients):
             print(f"#################################### Round {_round} | Client {client_idx} Training ####################################")
