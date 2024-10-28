@@ -122,68 +122,68 @@ def main(config):
 
         torch.cuda.empty_cache()
 
-        if _round == 1 or _round % 2 == 0:
-            for client_idx in range(config.num_clients):
-                train_result = inference(client_idx, global_model, local_weights, 
-                                        TrainDataset_dict, config, device, imp_w_dict)
-                valid_result = inference(client_idx, global_model, local_weights, 
-                                        ValDataset_dict, config, device, imp_w_dict)
-                test_result = inference(client_idx, global_model, local_weights, 
-                                        TestDataset_dict, config, device, imp_w_dict)
+        save_dict = None
+        for client_idx in range(config.num_clients):
+            train_result = inference(client_idx, global_model, local_weights, 
+                                    TrainDataset_dict, config, device, imp_w_dict)
+            valid_result = inference(client_idx, global_model, local_weights, 
+                                    ValDataset_dict, config, device, imp_w_dict)
+            test_result = inference(client_idx, global_model, local_weights, 
+                                    TestDataset_dict, config, device, imp_w_dict)
 
-                if not config.nowandb:
-                    wandb.log({
-                        "round": _round,
-                        f"Client_{client_idx}-Train_Loss": round(train_result[0], 3),
-                        f"Client_{client_idx}-Train_MAE": round(train_result[1], 3),
-                        f"Client_{client_idx}-Valid_Loss": round(valid_result[0], 3),
-                        f"Client_{client_idx}-Valid_MAE": round(valid_result[1], 3),
-                        f"Client_{client_idx}-Test_Loss": round(test_result[0], 3),
-                        f"Client_{client_idx}-Test_MAE": round(test_result[1], 3),
-                    })
+            if not config.nowandb:
+                wandb.log({
+                    "round": _round,
+                    f"Client_{client_idx}-Train_Loss": round(train_result[0], 3),
+                    f"Client_{client_idx}-Train_MAE": round(train_result[1], 3),
+                    f"Client_{client_idx}-Valid_Loss": round(valid_result[0], 3),
+                    f"Client_{client_idx}-Valid_MAE": round(valid_result[1], 3),
+                    f"Client_{client_idx}-Test_Loss": round(test_result[0], 3),
+                    f"Client_{client_idx}-Test_MAE": round(test_result[1], 3),
+                })
 
-            if (best_valid_MAE > valid_result[1] and _round >= 40):
-                best_valid_MAE = valid_result[1]
-                if config.agg_method == 'FedKLIEP':
-                    save_dict = {
-                        "round": _round,
-                        "global_model": global_model.state_dict(),
-                        "local_model": local_weights,
-                        "imp_w_list": imp_w_list,
-                    }
+        if (best_valid_MAE > valid_result[1] and _round >= 40):
+            best_valid_MAE = valid_result[1]
+            if config.agg_method == 'FedKLIEP':
+                save_dict = {
+                    "round": _round,
+                    "global_model": global_model.state_dict(),
+                    "local_model": local_weights,
+                    "imp_w_list": imp_w_list,
+                }
 
-                else:
-                    save_dict = {
-                        "round": _round,
-                        "global_model": global_model.state_dict(),
-                        "local_model": local_weights,
-                    }
+            else:
+                save_dict = {
+                    "round": _round,
+                    "global_model": global_model.state_dict(),
+                    "local_model": local_weights,
+                }
 
-                if not config.nowandb:
-                    torch.save(save_dict, 
-                            os.path.join(config.save_path, config.agg_method, wandb.run.name,
-                                            f"{wandb.run.name}_best_model.pth"))
-            if _round == 100:
-                if config.agg_method == 'FedKLIEP':
-                    save_dict = {
-                        "round": _round,
-                        "global_model": global_model.state_dict(),
-                        "local_model": local_weights,
-                        "imp_w_list": imp_w_list,
-                    }
-                else:
-                    save_dict = {
-                        "round": _round,
-                        "global_model": global_model.state_dict(),
-                        "local_model": local_weights,}
-                    
-                if not config.nowandb:
-                    torch.save(save_dict, 
-                            os.path.join(config.save_path, config.agg_method, wandb.run.name,
-                                            f"{wandb.run.name}_round100_model.pth"))
-                    
-            del save_dict, train_result, valid_result, test_result
-            torch.cuda.empty_cache()
+            if not config.nowandb:
+                torch.save(save_dict, 
+                        os.path.join(config.save_path, config.agg_method, wandb.run.name,
+                                        f"{wandb.run.name}_best_model.pth"))
+        if _round == 100:
+            if config.agg_method == 'FedKLIEP':
+                save_dict = {
+                    "round": _round,
+                    "global_model": global_model.state_dict(),
+                    "local_model": local_weights,
+                    "imp_w_list": imp_w_list,
+                }
+            else:
+                save_dict = {
+                    "round": _round,
+                    "global_model": global_model.state_dict(),
+                    "local_model": local_weights,}
+                
+            if not config.nowandb:
+                torch.save(save_dict, 
+                        os.path.join(config.save_path, config.agg_method, wandb.run.name,
+                                        f"{wandb.run.name}_round100_model.pth"))
+                
+        del save_dict, train_result, valid_result, test_result
+        torch.cuda.empty_cache()
 
     end = time.time()
 

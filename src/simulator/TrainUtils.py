@@ -38,8 +38,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
     """
     TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict[client_idx], 
                                               batch_size=config.batch_size, 
-                                              shuffle=True, num_workers=config.num_workers,
-                                              drop_last=True)
+                                              shuffle=True, num_workers=config.num_workers,)
 
     local_model = deepcopy(global_model).to(device)
     _global_model = deepcopy(global_model).to(device)
@@ -187,8 +186,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
                                         "MAELoss": round(epoch_mae / (batch_idx + 1), 3),
                                         })
 
-    del _global_model, prev_local_model, images, labels, output, loss, cos, pos_sim, neg_sim, logits, const_labels
-    del represent_local, represent_global, represent_prev_local, contrastive_loss, mse_loss, proximal_loss
+    del _global_model, prev_local_model, images, labels, output, loss, optimizer, criterion
     torch.cuda.empty_cache()
 
     if config.agg_method == 'FedKLIEP':
@@ -201,7 +199,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
 def inference(client_idx, global_model, local_weight, TestDataset_dict, config, device, imp_w_list):
     
     TestLoader = torch.utils.data.DataLoader(TestDataset_dict[client_idx],
-                                             batch_size=config.batch_size, 
+                                             batch_size=int(config.batch_size*2), 
                                              shuffle=False, num_workers=config.num_workers)
     
     global_model.eval()
@@ -209,7 +207,7 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
     criterion = nn.MSELoss()
     mae = 0
     test_loss = 0
-    
+
     with torch.no_grad():
         if config.personalized:
             local_model = deepcopy(global_model).to(device)
@@ -235,7 +233,7 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
             mae += MAE(output.detach().cpu().numpy().squeeze(), 
                     labels.detach().cpu().numpy().squeeze())
         
-    del local_model, images, labels, output, criterion
+    del images, labels, output, criterion
     torch.cuda.empty_cache()
         
     return (test_loss / len(TestLoader), mae / len(TestLoader))
@@ -461,73 +459,3 @@ def SaveBestResult(client_idx, bestmodel, TrainDataset_dict, ValDataset_dict, Te
     else:
         result_df.to_csv(os.path.join(config.save_path, config.agg_method,
                                   f"C{str(client_idx).zfill(2)}_{get_key_by_value(dataset_dict, client_idx)}_result_center.csv"), index=False)
-
-
-
-# def batch_train(image, label, loc_model, config,  device, prev_loc_model=None, glob_model=None, kliep=None):
-#     loc_model.train()
-#     criterion = nn.MSELoss()
-
-#     if config.agg_method == 'FedAvg':
-        
-#         output = loc_model(image)
-#         loss = criterion(output.squeeze(), label.squeeze())
-        
-#     elif config.agg_method == 'FedProx':
-#         proxloss = 0
-#         proxmu = config.proximal_mu
-
-#         output = loc_model(image)
-
-#         for loc_w, glob_w in zip(loc_model.parameters(), glob_model.parameters()):
-#             proxloss += torch.square((loc_w - glob_w).norm(2))
-        
-#         loss = criterion(output.squeeze(), label.squeeze()) + proxmu * proxloss
-        
-#         return loss, proxloss
-        
-
-#     elif config.agg_method == 'MOON':
-#         contrastive_temp = config.contrastive_temp
-
-#         cos = torch.nn.CosineSimilarity(dim=-1)
-#         const_loss = torch.nn.CrossEntropyLoss().cuda()
-        
-#         output, represent_local = loc_model(image, represent=True)
-#         _, represent_global = glob_model(image, represent=True)
-
-#         pos_sim = cos(represent_local, represent_global).reshape(-1, 1)
-
-#         prev_loc_model.to(device)
-    
-#         with torch.no_grad():
-#             _, represent_prev_local = prev_loc_model(image, represent=True)
-
-#         neg_sim = cos(represent_local, represent_prev_local).reshape(-1, 1)
-#         logits = torch.cat((pos_sim, neg_sim), dim=1) / contrastive_temp
-#         const_labels = torch.zeros(logits.size(0)).to(device).long()
-
-#         prev_loc_model.to("cpu")
-        
-#         contrastive_loss = config.proximal_mu * const_loss(logits, const_labels)
-#         mse_loss = criterion(output.squeeze(), label.squeeze())
-
-#         loss = contrastive_loss + mse_loss
-    
-#     elif config.agg_method == 'FedKLIEP':
-#         with torch.no_grad():
-#             (loc_rep_list, glob_rep_list, 
-#                 loc_hooks, glob_hooks) = get_activation_for_models(loc_model, glob_model, image)
-            
-#             kliep.fit(loc_rep_list, glob_rep_list)
-
-#             for l_hook, g_hook in zip(loc_hooks, glob_hooks):
-#                 l_hook.remove()
-#                 g_hook.remove()
-
-#             del loc_rep_list, glob_rep_list
-#             torch.cuda.empty_cache()
-
-#         output = loc_model(image, kliep.importance_weight_list)
-
-#         loss = criterion(output.squeeze(), label.squeeze())
