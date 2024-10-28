@@ -73,6 +73,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
         epoch_sub_loss = 0
         epoch_mse = 0
         epoch_mae = 0
+
         progress_bar = tqdm(enumerate(TrainLoader), total=len(TrainLoader), ncols=150)
         
         for batch_idx, batch in progress_bar:
@@ -186,9 +187,9 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
                                         "MAELoss": round(epoch_mae / (batch_idx + 1), 3),
                                         })
 
-    del _global_model, prev_local_model
+    del _global_model, prev_local_model, images, labels, output, loss, cos, pos_sim, neg_sim, logits, const_labels
+    del represent_local, represent_global, represent_prev_local, contrastive_loss, mse_loss, proximal_loss
     torch.cuda.empty_cache()
-
 
     if config.agg_method == 'FedKLIEP':
         return local_model.cpu().state_dict(), kliep.importance_weight_list
@@ -208,30 +209,34 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
     criterion = nn.MSELoss()
     mae = 0
     test_loss = 0
-
-    if config.personalized:
-        local_model = deepcopy(global_model).to(device)
-        local_model.load_state_dict(local_weight[client_idx])
-        local_model.eval()
-
-    for _, batch in enumerate(TestLoader):
-        images, labels = batch[0].to(device), batch[1].to(device)
-
+    
+    with torch.no_grad():
         if config.personalized:
-            if config.agg_method == 'FedKLIEP':
-                output = local_model(images, imp_w_list[client_idx])
-            else:
-                output = local_model(images)
-        else:
-            if config.agg_method == 'FedKLIEP':
-                output = global_model(images, imp_w_list[client_idx])
-            else:
-                output = global_model(images)
+            local_model = deepcopy(global_model).to(device)
+            local_model.load_state_dict(local_weight[client_idx])
+            local_model.eval()
 
-        test_loss += criterion(output.squeeze(), labels.squeeze()).item()
+        for _, batch in enumerate(TestLoader):
+            images, labels = batch[0].to(device), batch[1].to(device)
+
+            if config.personalized:
+                if config.agg_method == 'FedKLIEP':
+                    output = local_model(images, imp_w_list[client_idx])
+                else:
+                    output = local_model(images)
+            else:
+                if config.agg_method == 'FedKLIEP':
+                    output = global_model(images, imp_w_list[client_idx])
+                else:
+                    output = global_model(images)
+
+            test_loss += criterion(output.squeeze(), labels.squeeze()).item()
+            
+            mae += MAE(output.detach().cpu().numpy().squeeze(), 
+                    labels.detach().cpu().numpy().squeeze())
         
-        mae += MAE(output.detach().cpu().numpy().squeeze(), 
-                   labels.detach().cpu().numpy().squeeze())
+    del local_model, images, labels, output, criterion
+    torch.cuda.empty_cache()
         
     return (test_loss / len(TestLoader), mae / len(TestLoader))
 

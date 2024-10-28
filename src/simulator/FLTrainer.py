@@ -29,7 +29,7 @@ def main(config):
     device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
 
     if not config.nowandb:
-        run_wandb = init_wandb(config)
+        init_wandb(config)
         if not os.path.exists(config.save_path):
             os.makedirs(config.save_path)
         if not os.path.exists(os.path.join(config.save_path, config.agg_method)):
@@ -87,9 +87,7 @@ def main(config):
     for _round in range(config.round):
         round_start = time.time()
         _round += 1
-    
-        # learning_rate *= 0.995 # learning rate scheduler
-    
+        
         for client_idx in range(config.num_clients):
             print(f"################################################################ Round {_round} | Client {client_idx} Training ################################################################")
             
@@ -122,6 +120,8 @@ def main(config):
         seconds = round_time % 60
         print(f"Round {_round} Time: {minutes}m {round(seconds,2)}s")
 
+        torch.cuda.empty_cache()
+
         if _round == 1 or _round % 2 == 0:
             for client_idx in range(config.num_clients):
                 train_result = inference(client_idx, global_model, local_weights, 
@@ -132,7 +132,7 @@ def main(config):
                                         TestDataset_dict, config, device, imp_w_dict)
 
                 if not config.nowandb:
-                    run_wandb.log({
+                    wandb.log({
                         "round": _round,
                         f"Client_{client_idx}-Train_Loss": round(train_result[0], 3),
                         f"Client_{client_idx}-Train_MAE": round(train_result[1], 3),
@@ -182,11 +182,7 @@ def main(config):
                             os.path.join(config.save_path, config.agg_method, wandb.run.name,
                                             f"{wandb.run.name}_round100_model.pth"))
                     
-                del save_dict
-                torch.cuda.empty_cache()
-
-        if _round == 1 or _round % 2 == 0:
-            del train_result, valid_result, test_result
+            del save_dict, train_result, valid_result, test_result
             torch.cuda.empty_cache()
 
     end = time.time()
@@ -197,8 +193,8 @@ def main(config):
     print(f"***** Total Running Time: {minutes}m {round(seconds,2)}s *****")
 
     if not config.nowandb:
-        run_wandb.log({'Total Train Time': total_train_time})
-        run_wandb.finish()
+        wandb.log({'Total Train Time': total_train_time})
+        wandb.finish()
 
 
 if __name__ == '__main__':
