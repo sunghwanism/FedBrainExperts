@@ -107,10 +107,7 @@ def main(config):
             if config.agg_method == 'FedKLIEP':
                 imp_w_dict[client_idx] = imp_w_list
 
-            if config.agg_method == 'MOON':
-                del local_model_weight, prev_local_model
-            else:
-                del local_model_weight
+            del local_model_weight
 
             torch.cuda.empty_cache()
         
