@@ -19,11 +19,9 @@ from model.agg.aggmodule import Aggregator
 
 def main(config):
     assert (config.device_id is not None), 'Please specify device_id'
+    
     total_train_time = 0
     start = time.time()
-
-    if config.agg_method == 'FedKLIEP':
-        assert config.model == 'RepResNet', 'Only RepResNet is available for FedKLIEP'
 
     torch.cuda.set_device(config.device_id)
     device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
@@ -72,11 +70,6 @@ def main(config):
 
     learning_rate = config.lr
 
-    if config.agg_method == 'FedKLIEP':
-        imp_w_dict = {client_idx: [1,1,1,1] for client_idx in range(config.num_clients)}
-    else:
-        imp_w_dict = None
-
     local_weights = {}
 
     if config.agg_method == 'MOON':
@@ -97,14 +90,11 @@ def main(config):
                     prev_local_model = deepcopy(global_model)
                     prev_local_model.load_state_dict(local_weights[client_idx])
 
-            local_model_weight, imp_w_list = LocalUpdate(client_idx, global_model, learning_rate,
-                                                         TrainDataset_dict, config, device, _round, prev_local_model,
-                                                         imp_w_list=imp_w_dict)
+            local_model_weight = LocalUpdate(client_idx, global_model, learning_rate,
+                                             TrainDataset_dict, config, device, 
+                                             _round, prev_local_model,)
 
             local_weights[client_idx] = local_model_weight
-
-            if config.agg_method == 'FedKLIEP':
-                imp_w_dict[client_idx] = imp_w_list
 
             del local_model_weight
 
@@ -126,11 +116,11 @@ def main(config):
         save_dict = None
         for client_idx in range(config.num_clients):
             train_result = inference(client_idx, global_model, local_weights, 
-                                    TrainDataset_dict, config, device, imp_w_dict)
+                                    TrainDataset_dict, config, device)
             valid_result = inference(client_idx, global_model, local_weights, 
-                                    ValDataset_dict, config, device, imp_w_dict)
+                                    ValDataset_dict, config, device)
             test_result = inference(client_idx, global_model, local_weights, 
-                                    TestDataset_dict, config, device, imp_w_dict)
+                                    TestDataset_dict, config, device)
 
             if not config.nowandb:
                 wandb.log({
