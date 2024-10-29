@@ -85,6 +85,7 @@ def main(config):
         prev_local_model = None
 
     for _round in range(config.round):
+        _round_valid_MAE = 0
         round_start = time.time()
         _round += 1
         
@@ -142,8 +143,10 @@ def main(config):
                     f"Client_{client_idx}-Test_MAE": round(test_result[1], 3),
                 })
 
-        if (best_valid_MAE > valid_result[1] and _round >= 40):
-            best_valid_MAE = valid_result[1]
+            _round_valid_MAE += valid_result[1]
+
+        if (best_valid_MAE > (_round_valid_MAE/config.num_clients) and _round >= 40):
+            best_valid_MAE = _round_valid_MAE/config.num_clients
             if config.agg_method == 'FedKLIEP':
                 save_dict = {
                     "round": _round,
