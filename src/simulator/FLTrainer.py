@@ -142,7 +142,6 @@ def main(config):
                     "round": _round,
                     "global_model": global_model.state_dict(),
                     "local_model": local_weights,
-                    "imp_w_list": imp_w_list,
                 }
 
             else:
@@ -162,7 +161,6 @@ def main(config):
                     "round": _round,
                     "global_model": global_model.state_dict(),
                     "local_model": local_weights,
-                    "imp_w_list": imp_w_list,
                 }
             else:
                 save_dict = {
