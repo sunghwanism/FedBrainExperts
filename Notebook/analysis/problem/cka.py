@@ -8,7 +8,7 @@ Year: 2022
 import sys
 sys.path.append('../../../')
 
-from __future__ import annotations
+# from __future__ import annotations
 
 from typing import Tuple, Optional, Callable, Type, Union, TYPE_CHECKING, List
 
@@ -16,8 +16,8 @@ import torch
 import torch.nn as nn
 from tqdm.autonotebook import tqdm
 
-from Notebook.analysis.represent.hook_manager import HookManager, _HOOK_LAYER_TYPES
-from Notebook.analysis.represent.metrics import AccumTensor
+from hook_manager import HookManager, _HOOK_LAYER_TYPES
+from metrics import AccumTensor
 
 from torch.utils.data import DataLoader
 

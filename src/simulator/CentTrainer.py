@@ -41,10 +41,7 @@ def main(config):
                                         _mode='val', verbose=False, 
                                         get_info=True, PATH=config.data_path)
     
-    # TestDataset_dict = get_client_dataset(config, config.num_clients, 
-    #                                     _mode='test', verbose=False, 
-    #                                     PATH=config.data_path,
-    #                                     get_info=True)
+
     run_name = None
     
     if not config.nowandb:
@@ -64,7 +61,7 @@ def main(config):
     if config.agg_method == 'Local':
 
         for client_idx in range(config.num_clients):
-            bestmodel = LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config, device, run_name)
+            _ = LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config, device, run_name)
             local_train_time = time.time()-start
             total_train_time += local_train_time
 
@@ -73,7 +70,7 @@ def main(config):
         TrainDataset = MergeClientDataset(TrainDataset_dict, config.num_clients)
         ValDataset = MergeClientDataset(ValDataset_dict, config.num_clients)
 
-        bestmodel = LocalTrain(-1, TrainDataset, ValDataset, run_wandb, config, device, run_name)
+        _ = LocalTrain(-1, TrainDataset, ValDataset, run_wandb, config, device, run_name)
         local_train_time = time.time()-start
         total_train_time += local_train_time
 

@@ -14,12 +14,12 @@ def LocalConfig():
     # PATH
     # '/data/msh2044/AdaptFL/'
     # '/NFS/Users/moonsh/AdaptFL/'
-    parser.add_argument('--base_path', type=str, default='/data/msh2044/AdaptFL/',)
+    parser.add_argument('--base_path', type=str, default='/NFS/Users/moonsh/AdaptFL/',)
     
     # Data
     # '/local_datasets/msh2044/FLData/'
     # '/NFS/Users/moonsh/data/FLData/'
-    parser.add_argument('--data_path', type=str, default='/local_datasets/msh2044/FLData/',
+    parser.add_argument('--data_path', type=str, default='/NFS/Users/moonsh/data/FLData/',
                         help='Path to data')
 
     
@@ -35,9 +35,9 @@ def LocalConfig():
     # Train Arguments
     parser.add_argument('--batch_size', type=int, default=64,
                         help='Batch size')
-    parser.add_argument('--epochs', type=int, default=5,
+    parser.add_argument('--epochs', type=int, default=100,
                         help='Number of epochs per round')
-    parser.add_argument('--lr', type=float, default=1e-5,
+    parser.add_argument('--lr', type=float, default=2e-6,
                         help='Learning rate')
     parser.add_argument('--optimizer', type=str, default='sgd',
                         help='Optimizer (sgd, adam)')
@@ -69,7 +69,7 @@ def LocalConfig():
     # Save and Log Arguments
     # '/data/msh2044/AdaptFL/ckpt/'
     # '/NFS/Users/moonsh/AdaptFL/ckpt/'
-    parser.add_argument('--save_path', type=str, default='/data/msh2044/AdaptFL/ckpt/',
+    parser.add_argument('--save_path', type=str, default='/NFS/Users/moonsh/AdaptFL/ckpt/',
                         help='Where to save the model')
     parser.add_argument('--local_log_interval', type=int, default=5,)
     

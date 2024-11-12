@@ -258,6 +258,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         ValLoader = torch.utils.data.DataLoader(ValDataset_dict[client_idx],
                                                 batch_size=config.batch_size,
                                                 shuffle=False, num_workers=config.num_workers)
+        
     elif config.agg_method == 'Center':
         TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict, 
                                                   batch_size=config.batch_size, 
