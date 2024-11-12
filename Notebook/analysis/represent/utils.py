@@ -100,7 +100,7 @@ def load_all_client_loader(config):
 
 def vizualize_cka_model(model_dict, client_loader_list, device, criterion='Local'):
     torch.cuda.set_device(device)
-    fig, axs = plt.subplots(2, 5, figsize=(20, 3))
+    fig, axs = plt.subplots(2, 8, figsize=(20, 3))
     
     layers = (nn.Conv3d, nn.Linear)
     model_types = list(model_dict.keys())

@@ -22,8 +22,7 @@ from src.model.KLIEP import KLIEP
 
 
 def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict, 
-                config, device, _round, prev_local_model=None,
-                imp_w_list=None):
+                config, device, _round, prev_local_model=None,):
     """
     Args:
         client_idx: int
@@ -62,9 +61,7 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
         const_loss = torch.nn.CrossEntropyLoss().cuda()
 
     if config.agg_method == 'FedKLIEP':
-        kliep = KLIEP(bandwidth=config.bandwidth, device=device, steps=config.kliep_steps, 
-                      lr=config.kliep_lr, verbose=True)
-        kliep.importance_weight_list = imp_w_list[client_idx]
+        kliep = KLIEP(device, steps=1000, lr=0.0001, verbose=False)
 
     for epoch in range(config.epochs):
         local_model.train()
@@ -121,22 +118,30 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
                 loss = contrastive_loss + mse_loss
 
             elif config.agg_method == 'FedKLIEP':
-                with torch.no_grad():
-                    (loc_rep_list, glob_rep_list, 
-                        loc_hooks, glob_hooks) = get_activation_for_models(local_model, global_model, images)
+                # with torch.no_grad():
+                #     (loc_rep_list, glob_rep_list, 
+                #         loc_hooks, glob_hooks) = get_activation_for_models(local_model, global_model, images)
                 
-                kliep.fit(loc_rep_list, glob_rep_list)
+                # kliep.fit(loc_rep_list, glob_rep_list)
 
-                for l_hook, g_hook in zip(loc_hooks, glob_hooks):
-                    l_hook.remove()
-                    g_hook.remove()
+                # for l_hook, g_hook in zip(loc_hooks, glob_hooks):
+                #     l_hook.remove()
+                #     g_hook.remove()
 
-                del loc_rep_list, glob_rep_list
+                output, represent_local = local_model(images, represent=True)
+                _, represent_global = _global_model(images, represent=True)
+
+                if _round > 1:
+                    alpha = kliep.fit(represent_local, represent_global)
+                    mse_loss = criterion(output.squeeze(), labels.squeeze())
+                    loss = (alpha * (output.squeeze() - labels.squeeze()).pow(2)).mean()
+
+                else:
+                    mse_loss = criterion(output.squeeze(), labels.squeeze())
+                    loss = mse_loss
+                
+                del represent_local, represent_global
                 torch.cuda.empty_cache()
-
-                output = local_model(images, kliep.importance_weight_list)
-                mse_loss = criterion(output.squeeze(), labels.squeeze())
-                loss = mse_loss
 
             loss.backward()
             optimizer.step()
@@ -189,14 +194,11 @@ def LocalUpdate(client_idx, global_model, learning_rate, TrainDataset_dict,
     del _global_model, prev_local_model, images, labels, output, loss, optimizer, criterion
     torch.cuda.empty_cache()
 
-    if config.agg_method == 'FedKLIEP':
-        return local_model.cpu().state_dict(), kliep.importance_weight_list
-    else:
-        return local_model.cpu().state_dict(), None
+    return local_model.cpu().state_dict()
 
 
 
-def inference(client_idx, global_model, local_weight, TestDataset_dict, config, device, imp_w_list):
+def inference(client_idx, global_model, local_weight, TestDataset_dict, config, device):
     
     TestLoader = torch.utils.data.DataLoader(TestDataset_dict[client_idx],
                                              batch_size=int(config.batch_size*2), 
@@ -218,15 +220,9 @@ def inference(client_idx, global_model, local_weight, TestDataset_dict, config, 
             images, labels = batch[0].to(device), batch[1].to(device)
 
             if config.personalized:
-                if config.agg_method == 'FedKLIEP':
-                    output = local_model(images, imp_w_list[client_idx])
-                else:
-                    output = local_model(images)
+                output = local_model(images)
             else:
-                if config.agg_method == 'FedKLIEP':
-                    output = global_model(images, imp_w_list[client_idx])
-                else:
-                    output = global_model(images)
+                output = global_model(images)
 
             test_loss += criterion(output.squeeze(), labels.squeeze()).item()
             
@@ -262,6 +258,7 @@ def LocalTrain(client_idx, TrainDataset_dict, ValDataset_dict, run_wandb, config
         ValLoader = torch.utils.data.DataLoader(ValDataset_dict[client_idx],
                                                 batch_size=config.batch_size,
                                                 shuffle=False, num_workers=config.num_workers)
+        
     elif config.agg_method == 'Center':
         TrainLoader = torch.utils.data.DataLoader(TrainDataset_dict, 
                                                   batch_size=config.batch_size, 
