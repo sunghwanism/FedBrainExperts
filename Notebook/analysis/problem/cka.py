@@ -21,6 +21,8 @@ from metrics import AccumTensor
 
 from torch.utils.data import DataLoader
 
+import numpy as np
+
 
 class CKACalculator:
     def __init__(self, model1: nn.Module, model2: nn.Module, dataloader: DataLoader,
@@ -86,6 +88,7 @@ class CKACalculator:
                 # Get cross HSIC values --> HSIC(K, L)
                 self._calculate_cross_hsic(all_layer_X, all_layer_Y, curr_hsic_matrix)
 
+
                 self.hook_manager1.clear_features()
                 self.hook_manager2.clear_features()
                 curr_hsic_matrix.fill_(0)
@@ -114,6 +117,7 @@ class CKACalculator:
         '''
         assert K.size() == L.size()
         assert K.dim() == 3
+
         K = K.clone()
         L = L.clone()
         n = K.size(1)
@@ -124,11 +128,15 @@ class CKACalculator:
 
         KL = torch.bmm(K, L)
         trace_KL = KL.diagonal(dim1=-1, dim2=-2).sum(-1).unsqueeze(-1).unsqueeze(-1)
+
         middle_term = K.sum((-1, -2), keepdim=True) * L.sum((-1, -2), keepdim=True)
-        middle_term /= (n - 1) * (n - 2)
+        middle_term /= (n - 1) * (n - 2) 
+
         right_term = KL.sum((-1, -2), keepdim=True)
         right_term *= 2 / (n - 2)
+
         main_term = trace_KL + middle_term - right_term
+
         hsic = main_term / (n ** 2 - 3 * n)
         return hsic.squeeze(-1).squeeze(-1)
 
@@ -175,7 +183,6 @@ class CKACalculator:
             L = torch.stack([all_layer_Y[j // self.num_layers_X] for j in range(start_idx, end_idx)], dim=0)
             curr_hsic_matrix[start_idx:end_idx] += self.hsic1(K, L) * self.epsilon
         self.hsic_matrix.update(curr_hsic_matrix)
-
 
 def gram(x: torch.Tensor) -> torch.Tensor:
     return x.matmul(x.t())

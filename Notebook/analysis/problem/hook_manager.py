@@ -100,6 +100,7 @@ class HookManager:
         feature = out.reshape(batch_size, -1)
         if self.calculate_gram:
             feature = gram(feature)
+
         module_name = getattr(module, 'module_name')
         self.features.append(feature)
         self.module_names.append(module_name)
@@ -113,6 +114,7 @@ class HookManager:
             feature = out
         if self.calculate_gram:
             feature = gram(feature)
+
         module_name = getattr(module, 'module_name')
         self.features.append(feature)
         self.module_names.append(module_name)
