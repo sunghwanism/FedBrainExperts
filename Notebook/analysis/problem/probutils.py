@@ -15,7 +15,7 @@ from src.data.DataList import dataset_dict
 from src.simulator.utils import get_key_by_value
 
 
-def vizualize_cka_model(model_dict, client_loader_list, device, criterion):
+def vizualize_cka_model(model_dict, client_loader_list, device, criterion, unbiased=False):
     torch.cuda.set_device(device)
     fig, axs = plt.subplots(2, 5, figsize=(25, 12))
     
@@ -40,7 +40,7 @@ def vizualize_cka_model(model_dict, client_loader_list, device, criterion):
                                         dataloader=dataLoader,
                                         hook_layer_types=layers,
                                         num_epochs=1,
-                                        epsilon=1e-10)
+                                        epsilon=1e-10,)
                 
             else:
                 if _type == 'Local':
@@ -49,14 +49,14 @@ def vizualize_cka_model(model_dict, client_loader_list, device, criterion):
                                                 dataloader=dataLoader,
                                                 hook_layer_types=layers,
                                                 num_epochs=1,
-                                                epsilon=1e-10)
+                                                epsilon=1e-4,)
                 else:
                     calculator = CKACalculator(model1=model_dict['Center'].to(device),
-                                                        model2=model_dict[_type].to(device),
-                                                        dataloader=dataLoader,
-                                                        hook_layer_types=layers,
-                                                        num_epochs=1,
-                                                        epsilon=1e-10)
+                                               model2=model_dict[_type].to(device),
+                                               dataloader=dataLoader,
+                                               hook_layer_types=layers,
+                                               num_epochs=1,
+                                               epsilon=1e-4,)
                                     
             cka_output = calculator.calculate_cka_matrix().detach().cpu().numpy()
             cka_output = np.diag(cka_output)
@@ -74,8 +74,11 @@ def vizualize_cka_model(model_dict, client_loader_list, device, criterion):
             calculator.reset()
             torch.cuda.empty_cache()
         
-        # image = ax.imshow(client_cka, cmap='inferno', vmin=0, vmax=1,  aspect='auto')
-        image = sns.heatmap(client_cka, ax=ax, cmap='inferno', vmin=0, vmax=1, cbar=False) #  aspect='auto')
+        vmin = 0
+        vmax = 1.0
+        cmap = 'inferno'
+
+        image = sns.heatmap(client_cka, ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, cbar=False)
 
         ax.set_xticks(range(len(layer_names)))
         ax.set_xticklabels(layer_names, rotation=90)
