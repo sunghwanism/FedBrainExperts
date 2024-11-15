@@ -1,6 +1,6 @@
 #!/bin/bash
 
-seeds=(10 20 30 40)
+seeds=(10 20 30)
 
 for seed in "${seeds[@]}"
 do
