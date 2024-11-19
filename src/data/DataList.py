@@ -28,3 +28,16 @@ dist_colors = [
     "#b3cde0",  # Pastel Cyan
     "#f6e8ea"   # Pastel Peach
 ]
+
+
+
+ind_dataset_dict = {"ADNI": 10,
+                    "COBRE": 11,
+                    "MCIC": 12,
+                    "NUSDAST": 13,
+                    "OAS4": 14,
+                    "OAS2": 15,
+                    "SLIM": 16,
+                    "CoRR": 17,
+                    "fcon1000": 18,
+}

@@ -13,9 +13,11 @@ import torch.nn as nn
 
 import matplotlib.pyplot as plt
 
-from src.data.DataList import dataset_dict
+from src.data.DataList import ind_dataset_dict, dataset_dict
 from src.metric.function import MAE
 from src.simulator.utils import generate_model, get_client_dataset, get_key_by_value
+
+from src.data.IndDataset import IndDataset
 
 
 def load_config(config_path, proj_name):
@@ -86,9 +88,24 @@ def load_all_client_loader(config, _mode='test'):
     if _mode == 'test':
         result_list = []
         TestDataset_dict = get_client_dataset(config, config.num_clients, 
-                                        _mode='test', verbose=False, 
-                                        PATH=config.data_path,
-                                        get_info=True)
+                                            _mode='test', verbose=False, 
+                                            PATH=config.data_path,
+                                            get_info=True)
+            
+        for i in range(config.num_clients):
+            
+            temp_loader = torch.utils.data.DataLoader(TestDataset_dict[i],
+                                                    batch_size=config.batch_size, shuffle=False,
+                                                    num_workers=0)
+            result_list.append(temp_loader)
+            
+        return result_list
+    
+    elif _mode == 'independent':
+        result_list = []
+        TestDataset_dict = get_ind_client_dataset(config,verbose=False, 
+                                                  PATH=config.data_path,
+                                                  get_info=True,)
         
         for i in range(config.num_clients):
             
@@ -113,7 +130,7 @@ def load_all_client_loader(config, _mode='test'):
                                              get_info=True)
 
         TestDataset_dict = get_client_dataset(config, config.num_clients, 
-                                              _mode='val', verbose=False, 
+                                              _mode='test', verbose=False, 
                                               PATH=config.data_path,
                                               get_info=True)
         
@@ -253,3 +270,110 @@ def convert_to_float(value):
         return float(value)
     except ValueError:
         return value  # If it can't be converted, return as is (handle error case)
+    
+
+def get_ind_client_dataset(config, verbose=False, get_info=False, PATH='/NFS/Users/moonsh/thesis/data/'):
+    """
+    use_data_idx: list of int for the index of the dataset from DataList.py
+    client_num: int for the number of clients
+    """
+
+    client_dataset_dict = {}
+
+    for client_idx, data_idx in enumerate(config.data_idx):
+        dataname = [k for k, v in ind_dataset_dict.items() if v == data_idx][0]
+
+        client_dataset = IndDataset(dataname, PATH, config, verbose=verbose, get_info=get_info)
+        
+        client_dataset_dict[client_idx] = client_dataset
+
+    return client_dataset_dict
+
+    
+
+def get_client_ind_result(client_idx, model_dict, Loader, device, savepath, model_type_dict):
+    result_dict = {}
+
+    for model_type, model in model_dict.items():
+        result_dict[model_type] = None
+
+        if model_type == 'Local':
+            pass
+        else:
+            model.to(device)
+            model.eval()
+
+        result_df = pd.DataFrame()
+        criterion = nn.MSELoss()
+            
+        pred_age = []
+        true_age = []
+        Subject_list = []
+        Sex_list = []
+
+        mae = 0
+        epoch_loss = 0
+
+        for batch in Loader:
+            with torch.no_grad():
+                (images, labels, Subject, Sex) = batch[0].to(device), batch[1].to(device), batch[2], batch[3]
+                output = model(images)
+                loss = criterion(output.squeeze(), labels.squeeze())
+                epoch_loss += loss.item()
+                mae += MAE(output.detach().cpu().numpy().squeeze(), 
+                        labels.detach().cpu().numpy().squeeze())
+                
+                if output.size(0) > 1:
+                    output = output.detach().cpu().numpy().squeeze()
+                    labels = labels.detach().cpu().numpy().squeeze()
+                    Subject = np.array(Subject).squeeze()
+                    Sex = np.array(Sex).squeeze()
+                
+                else:
+                    output = output.detach().cpu().numpy()
+                    labels = labels.detach().cpu().numpy()
+                    Subject = np.array(Subject)
+                    Sex = np.array(Sex)
+                
+                pred_age.extend(output)
+                true_age.extend(labels)
+                Subject_list.extend(Subject)
+                Sex_list.extend(Sex)
+            
+            mae = mae / len(Loader)
+            epoch_loss = epoch_loss / len(Loader)
+
+            col_mode = ["Test"]*len(Subject_list)
+
+            temp_df = pd.DataFrame({'Subject': Subject_list,
+                                    'Sex': Sex_list,
+                                    'Age': true_age,
+                                    'pred_age': pred_age,
+                                    'mode': col_mode})
+            
+            result_df = pd.concat([result_df, temp_df], axis=0)
+
+            if not os.path.exists(os.path.join(savepath, model_type)):
+                os.makedirs(os.path.join(savepath, model_type))
+            
+            if not os.path.exists(os.path.join(savepath, model_type, model_type_dict[model_type][0])):
+                os.makedirs(os.path.join(savepath, model_type, model_type_dict[model_type][0]))
+
+            SAVEPATH = os.path.join(savepath, model_type, model_type_dict[model_type][0])
+
+            data_name = get_key_by_value(ind_dataset_dict, client_idx)
+            result_df = result_df.applymap(convert_to_float)
+                
+            if model_type == 'Local':
+                result_df.to_csv(os.path.join(SAVEPATH,
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type][0]}_local.csv"), index=False)
+            
+            elif model_type == 'Center':
+                result_df.to_csv(os.path.join(SAVEPATH,
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type][0]}_center.csv"), index=False)
+            
+            else:
+                result_df.to_csv(os.path.join(SAVEPATH,
+                                            f"C{str(client_idx).zfill(2)}_{data_name}_{model_type_dict[model_type][0]}_{model_type}.csv"), index=False)
+
+    return result_dict
