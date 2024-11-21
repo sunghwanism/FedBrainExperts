@@ -82,10 +82,12 @@ def mMAE(df, real_col, pred_col, interval_list, verbose=False): # Robustness
     
 def BiasCorrection(df, real_col, pred_col, method='linear', base_df=None):
     
+    if ("Control" in df.columns) and (base_df is None):
+        base_df = df[df["Control"] == "HC"]
+
     real_age = df[real_col].values
     pred_age = df[pred_col].values
     
-    # temp_df = df[["Subject", real_col, pred_col]].copy()
     temp_df = df.copy()
     
     if method == 'linear':
@@ -101,6 +103,14 @@ def BiasCorrection(df, real_col, pred_col, method='linear', base_df=None):
         temp_df["corr_PAD"] = corr_pred_age - temp_df[real_col].values
         
     elif method == 'cole':
+        if base_df is not None:
+            base_real_age = base_df[real_col].values
+            base_pred_age = base_df[pred_col].values
+            z = np.polyfit(base_real_age, base_pred_age, 1)
+            
+        else:
+            z = np.polyfit(real_age, pred_age, 1)
+
         corr_pred_age = (pred_age - z[1]) / z[0] # z[0] is slope, z[1] is intercept
         temp_df["PAD"] = pred_age - real_age
         temp_df["corr_PAD"] = corr_pred_age - temp_df[real_col].values
@@ -113,16 +123,21 @@ def BiasCorrection(df, real_col, pred_col, method='linear', base_df=None):
         temp_df["corr_PAD"] = corr_pred_age - temp_df[real_col].values
 
     elif 'age_level' in method:
+        if base_df is not None:
+            base_real_age = base_df[real_col].values
+            base_pred_age = base_df[pred_col].values
+            z = np.polyfit(base_real_age, base_pred_age, 1)
+        
+        else:
+            z = np.polyfit(real_age, pred_age, 1)
 
         if method == 'age_level_wBeheshti': # correction with Beheshti's method
-            z = np.polyfit(real_age, pred_age, 1)
             corr_pred_age = pred_age + (real_age - (z[0]*real_age + z[1]))
             temp_df['corr_pred_age'] = corr_pred_age
             temp_df["PAD"] = pred_age - real_age
             temp_df["corr_PAD"] = corr_pred_age - temp_df[real_col].values
 
         elif method == 'age_level_wCole':
-            z = np.polyfit(real_age, pred_age, 1)
             corr_pred_age = (pred_age - z[1]) / z[0]
             temp_df['corr_pred_age'] = corr_pred_age
             temp_df["PAD"] = pred_age - real_age
@@ -519,7 +534,7 @@ def longitudinal_integrate_repeat_df(BASEPATH, data, num_repeat, modalities=['sM
 def Longitudinal_performance(total_df, interval_list, verbose=False):
 
     result_df = total_df.copy()
-    result_df = result_df.groupby(['Subject', 'modality']).mean()
+    result_df = result_df.groupby(['Subject', 'model']).mean()
     result_df.reset_index(inplace=True)
 
     real_gap = result_df['real_age_2'] - result_df['real_age_1']
@@ -531,18 +546,18 @@ def Longitudinal_performance(total_df, interval_list, verbose=False):
     result_df['gap_diff'] = result_df['real_gap'] - result_df['pred_gap']
     result_df['abs_gap_diff'] = abs(result_df['real_gap'] - result_df['pred_gap'])
 
-    MdE = result_df.groupby('modality')['gap_diff'].mean()
-    MAdE = result_df.groupby('modality')['abs_gap_diff'].mean()
-    MdE_std = result_df.groupby('modality')['gap_diff'].std()
-    MAdE_std = result_df.groupby('modality')['abs_gap_diff'].std()
+    MdE = result_df.groupby('model')['gap_diff'].mean()
+    MAdE = result_df.groupby('model')['abs_gap_diff'].mean()
+    MdE_std = result_df.groupby('model')['gap_diff'].std()
+    MAdE_std = result_df.groupby('model')['abs_gap_diff'].std()
 
-    sMRI_mMAE = []
-    dMRI_mMAE = []
-    GsLd_mMAE = []
+    Center_mMAE = []
+    FedAvg_mMAE = []
+    FedProx_mMAE = []
+    MOON_mMAE = []
 
     for i in range(len(interval_list)):
         
-
         if i == 0:
             temp_df = result_df[result_df['real_age_1'] < interval_list[i]]
             if verbose:
@@ -552,25 +567,28 @@ def Longitudinal_performance(total_df, interval_list, verbose=False):
             if verbose:
                 print(f"Interval {interval_list[i-1]} ~ {interval_list[i]} : {len(temp_df)}")
 
-        interval_mae_df = temp_df.groupby('modality')['abs_gap_diff'].mean()
-        sMRI_mMAE.append(interval_mae_df['sMRI'])
-        dMRI_mMAE.append(interval_mae_df['dMRI_fa'])
-        GsLd_mMAE.append(interval_mae_df['GsLd_fa'])
+        interval_mae_df = temp_df.groupby('model')['abs_gap_diff'].mean()
+        Center_mMAE.append(interval_mae_df['Center'])
+        FedAvg_mMAE.append(interval_mae_df['FedAvg'])
+        FedProx_mMAE.append(interval_mae_df['FedProx'])
+        MOON_mMAE.append(interval_mae_df['MOON'])
 
-    sMRI_mMAE = np.array(sMRI_mMAE)
-    dMRI_mMAE = np.array(dMRI_mMAE)
-    GsLd_mMAE = np.array(GsLd_mMAE)
+    Center_mMAE = np.array(Center_mMAE)
+    FedAvg_mMAE = np.array(FedAvg_mMAE)
+    FedProx_mMAE = np.array(FedProx_mMAE)
+    MOON_mMAE = np.array(MOON_mMAE)
 
-    sMRI_mMAE = np.max(sMRI_mMAE)
-    dMRI_mMAE = np.max(dMRI_mMAE)
-    GsLd_mMAE = np.max(GsLd_mMAE)
+    Center_mMAE = np.max(Center_mMAE)
+    FedAvg_mMAE = np.max(FedAvg_mMAE)
+    FedProx_mMAE = np.max(FedProx_mMAE)
+    MOON_mMAE = np.max(MOON_mMAE)
 
-    return  pd.DataFrame({"MdE": [MdE['sMRI'], MdE['dMRI_fa'], MdE['GsLd_fa']],
-                          "MdE_std": [MdE_std['sMRI'], MdE_std['dMRI_fa'], MdE_std['GsLd_fa']],
-                          "MAdE": [MAdE['sMRI'], MAdE['dMRI_fa'], MAdE['GsLd_fa']],
-                          "MAdE_std": [MAdE_std['sMRI'], MAdE_std['dMRI_fa'], MAdE_std['GsLd_fa']],
-                          "mMAdE": [sMRI_mMAE, dMRI_mMAE, GsLd_mMAE]}, 
-                          index=['sMRI', 'dMRI', 'GsLd']), result_df
+    return  pd.DataFrame({"MdE": [MdE['Center'], MdE['FedAvg'], MdE['FedProx'], MdE['MOON']],
+                          "MdE_std": [MdE_std['Center'], MdE_std['FedAvg'], MdE_std['FedProx'], MdE_std['MOON']],
+                          "MAdE": [MAdE['Center'], MAdE['FedAvg'], MAdE['FedProx'], MAdE['MOON']],
+                          "MAdE_std": [MAdE_std['Center'], MAdE_std['FedAvg'], MAdE_std['FedProx'], MAdE_std['MOON']],
+                          "mMAdE": [Center_mMAE, FedAvg_mMAE, FedProx_mMAE, MOON_mMAE]}, 
+                          index=['Center', 'FedAvg', 'FedProx', "MOON"]), result_df
     
 
 
