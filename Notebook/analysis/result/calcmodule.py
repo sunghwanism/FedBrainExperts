@@ -20,6 +20,39 @@ import pingouin as pg
 # from rpy2.robjects import default_converter
 
 
+def PANSS_estimator(df, dataset,):
+    """Estimate PANSS score cited by Converting Positive and Negative Symptom Scores BetweenPANSS and SAPS/SANS (2014)"""
+
+    if dataset == "MCIC":
+        sans_global_ratings = ["Global Rating of Affective Flattening",
+                               "Global Rating of Alogia",
+                               "Global Rating of Avolition - Apathy",
+                               "Global Rating of Anhedonia - Asociality",
+                               "Global Rating of Attention"
+                               ]
+        
+        saps_global_ratings = [ "Global Rating of Severity of Delusions",
+                               "Global Rating of Severity of Hallucinations",
+                               "Global Rating of Severity of Bizarre Behavior",
+                               "Global Rating of Positive Formal Thought Disorder"]
+        
+        for score in sans_global_ratings+saps_global_ratings:
+            df.dropna(subset=score, axis=0, inplace=True)
+            df[score].replace(['DK', "MD"], np.nan, inplace=True)
+            df.dropna(subset=[score], axis=0, inplace=True)
+            df[score] = df[score].astype(float)
+        
+    else:
+        ValueError("Invalid dataset")
+
+
+
+    df['Positive Scale'] = 9.3264 + (1.1072*df[saps_global_ratings].sum(axis=1))
+    df['Negative Scale'] = 6.7515 + (1.0287*df[sans_global_ratings].sum(axis=1))
+
+    return df
+
+
 def MeanAbsError(df, real_col, pred_col):
     real_age = df[real_col]
     pred_age = df[pred_col]
@@ -354,44 +387,36 @@ def cognitive_association(df, real_col, pred_col, cognitive_cols, correction_met
     return df, real_df, pred_df, total_df
         
         
-def association_with_covariate(df, real_col, pred_col, covariate_cols, cognitive_cols, correction_method=None, verbose=False):
+def association_with_covariate(corrected_df, covariate_cols, cognitive_cols,verbose=False,):
     
     result_df = pd.DataFrame()
     rest_df = pd.DataFrame()
     
-    total_df = df.copy()
-    
-    corrected_df = BiasCorrection(total_df, real_col, pred_col, method=correction_method)
-    
-    if corrected_df["corr_PAD"].mean() == -100: # Not use case (only use PAD case)
-        corrected_df["corr_PAD"] = corrected_df["PAD"]
-        corrected_df = corrected_df[["Subject", 'PAD', "corr_PAD"]]
-        
-    else:
-        corrected_df = corrected_df[["Subject", 'PAD', "corr_PAD", "PAD_mean", "PAD_std"]]
-    
-    total_df = pd.merge(total_df, corrected_df, on='Subject', how='left')
-    total_df = total_df[total_df['corr_PAD'] != 0]
+    total_df = corrected_df.copy()
+    total_df.rename({"Sex(1=m,2=f)": "Sex"}, inplace=True, axis=1)
     
     total_df['Age2'] = total_df['Age']**2
     total_df['Sex*Age'] = total_df['Sex'] * total_df['Age']
+    total_df['PAD*Sex'] = total_df['corr_PAD'] * total_df['Sex']
+    total_df['PAD*Age'] = total_df['corr_PAD'] * total_df['Age']
     
     cov_df = total_df[covariate_cols]
     
     for cog_col in cognitive_cols:
         
-        filter_col = [cog_col, 'corr_PAD']
+        filter_col = [cog_col]
         temp_df = cov_df.copy()
         temp_df = pd.concat([temp_df, total_df[filter_col]], axis=1)
         drop_na_list = covariate_cols + [cog_col] + ['corr_PAD']
         
         temp_df = temp_df.dropna(subset=drop_na_list, axis=0)
-        temp_y_df = temp_df['corr_PAD']
-        temp_df.drop(['corr_PAD'], axis=1, inplace=True)
+        temp_y_df = temp_df[cog_col]
+        temp_df.drop([cog_col], axis=1, inplace=True)
         
         temp_df['intercept'] = 1
         
         model = sm.OLS(temp_y_df, temp_df).fit()
+
         if verbose:
             print(model.summary())
         
@@ -399,7 +424,7 @@ def association_with_covariate(df, real_col, pred_col, covariate_cols, cognitive
         summary_df = summary_frame[['Coef.', 't', 'P>|t|', '[0.025', '0.975]']]
         
         save_col = ['Coef.', 't', 'p_val', '[0.025', '0.975]']
-        save_value = list(summary_df.loc[cog_col].values)
+        save_value = list(summary_df.loc['corr_PAD'].values)
         
         if save_value[2] < 0.05:
             print(model.summary())
