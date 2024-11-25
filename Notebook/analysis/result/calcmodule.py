@@ -13,12 +13,6 @@ from scipy.stats import pearsonr, spearmanr, norm
 from itertools import combinations
 import pingouin as pg
 
-# import rpy2.robjects as ro
-# from rpy2.robjects import pandas2ri
-# from rpy2.robjects.packages import importr
-# from rpy2.robjects.conversion import localconverter
-# from rpy2.robjects import default_converter
-
 
 def PANSS_estimator(df, dataset,):
     """Estimate PANSS score cited by Converting Positive and Negative Symptom Scores BetweenPANSS and SAPS/SANS (2014)"""
@@ -47,8 +41,8 @@ def PANSS_estimator(df, dataset,):
 
 
 
-    df['Positive Scale'] = 9.3264 + (1.1072*df[saps_global_ratings].sum(axis=1))
-    df['Negative Scale'] = 6.7515 + (1.0287*df[sans_global_ratings].sum(axis=1))
+    df['PANSS (Positive)'] = 9.3264 + (1.1072*df[saps_global_ratings].sum(axis=1))
+    df['PANSS (Negative)'] = 6.7515 + (1.0287*df[sans_global_ratings].sum(axis=1))
 
     return df
 
@@ -226,7 +220,7 @@ def LMEM(df, fixed_cols, random_cols, dependent_col, intercept, verbose=False):
     model = mixedlm(condition,
                     df, 
                     groups=df[random_cols], )
-                    # re_formula=fixed_cols)
+    
     result = model.fit()
     
     table = result.summary().tables[1]
@@ -399,6 +393,14 @@ def association_with_covariate(corrected_df, covariate_cols, cognitive_cols,verb
     total_df['Sex*Age'] = total_df['Sex'] * total_df['Age']
     total_df['PAD*Sex'] = total_df['corr_PAD'] * total_df['Sex']
     total_df['PAD*Age'] = total_df['corr_PAD'] * total_df['Age']
+    total_df['PAD*Education'] = total_df['corr_PAD'] * total_df['Education']
+
+    try:
+        total_df['PAD*Duration'] = total_df['corr_PAD'] * total_df['Duration']
+        total_df['Sex*Age*Duration'] = total_df['Sex'] * total_df['Age'] * total_df['Duration']
+        total_df["PAD*Handedness"] = total_df['corr_PAD'] * total_df['Handedness']
+    except:
+        pass
     
     cov_df = total_df[covariate_cols]
     
@@ -470,90 +472,34 @@ def reproduciability(total_df): # Reference: https://github.com/AralRalud/BASE/b
     
     # Difference between predicted age at visit 2 and visit 1
     # add visit number
-    total_df['visit'] = total_df.groupby(['modality', 'repeat_idx', 'Subject'])['scan'].transform(lambda x: x.astype('category').cat.codes + 1)
+    total_df['visit'] = total_df.groupby(['model', 'repeat_idx', 'Subject'])['scan'].transform(lambda x: x.astype('category').cat.codes + 1)
 
-    results_wide = total_df.pivot_table(index=['Subject', 'modality', 'repeat_idx',], columns='visit',
+    results_wide = total_df.pivot_table(index=['Subject', 'model', 'repeat_idx',], columns='visit',
                                     values=['pred_age', 'scan'], aggfunc='first').reset_index()
 
     results_wide.columns = [f'{col}_{lvl}' if lvl else col for col, lvl in results_wide.columns.values]
 
     results_wide['diff'] = results_wide['pred_age_1'] - results_wide['pred_age_2']
-    mean_diff = results_wide.groupby('modality')['diff'].mean()
-    avg_std_diff = results_wide.groupby(['modality'])['diff'].std()
+    mean_diff = results_wide.groupby('model')['diff'].mean()
+    avg_std_diff = results_wide.groupby(['model'])['diff'].std()
 
     # average standard deviation of predicted age per scan
-    avg_sd_y_pred = total_df.groupby(['modality', 'scan', 'Subject', 'visit'])[['real_age','pred_age']].std().\
-    reset_index().groupby(['modality'])['pred_age'].mean()
+    avg_sd_y_pred = total_df.groupby(['model', 'scan', 'Subject', 'visit'])[['Age','pred_age']].std().\
+    reset_index().groupby(['model'])['pred_age'].mean()
 
     paper_table = pd.concat((avg_sd_y_pred, mean_diff, avg_std_diff),  axis=1)
     paper_table.columns = ['avg_std_y_pred', 'mean_diff', 'std_diff']
 
 
-    icc_diff_df = results_wide[['Subject', 'modality', 'repeat_idx', 'diff']]
+    icc_diff_df = results_wide[['Subject', 'model', 'repeat_idx', 'diff']]
     icc_diff_result = pg.intraclass_corr(icc_diff_df, targets='Subject', 
-                                         ratings='diff', raters='modality')
+                                         ratings='diff', raters='model')
     
-    icc_pred_df = total_df[['Subject', 'modality', 'repeat_idx', 'pred_age']]
+    icc_pred_df = total_df[['Subject', 'model', 'repeat_idx', 'pred_age']]
     icc_pred_y = pg.intraclass_corr(icc_pred_df, targets='Subject', 
-                                    ratings='pred_age', raters='modality')
+                                    ratings='pred_age', raters='model')
     
     return paper_table, results_wide, icc_diff_result, icc_pred_y
-
-
-def longitudinal_integrate_repeat_df(BASEPATH, data, num_repeat, modalities=['sMRI', "dMRI_fa", "GsLd_fa"]):
-
-    final_df = pd.DataFrame()
-
-    use_subject_df = pd.read_csv(os.path.join(BASEPATH, 'slim_longitudinal_phenotype.csv'))
-    use_subject_df['Subject'] = [f"sub-{sub}" for sub in use_subject_df['Subject'].values]
-    use_subject_long1 = use_subject_df[use_subject_df['scan_order_1']==1]
-    use_subject_long2 = use_subject_df[use_subject_df['scan_order_2']==2]
-    use_subject_long3 = use_subject_df[use_subject_df['scan_order_2']==3]
-
-    for modal in modalities:
-        for rep in range(num_repeat):
-            total_test_df = pd.DataFrame()
-
-            seed = 142 + 10*rep
-            long1 = pd.read_csv(os.path.join(BASEPATH, f'{data}_long1_{modal}_axial_{seed}.csv'))
-            long2 = pd.read_csv(os.path.join(BASEPATH, f'{data}_long2_{modal}_axial_{seed}.csv'))
-            long3 = pd.read_csv(os.path.join(BASEPATH, f'{data}_long3_{modal}_axial_{seed}.csv'))
-
-            long1 = long1[long1['Subject'].isin(use_subject_long1['Subject'])]
-            long2 = long2[long2['Subject'].isin(use_subject_long2['Subject'])]
-            long3 = long3[long3['Subject'].isin(use_subject_long3['Subject'])]
-
-            long2.rename({'pred_age': 'pred_age_2', 'real_age':'real_age_2'}, axis=1, inplace=True)
-            long3.rename({'pred_age': 'pred_age_3', 'real_age':'real_age_3'}, axis=1, inplace=True)
-
-            total_test_df = pd.concat([total_test_df, long1], axis=0)
-            total_test_df.rename({'pred_age': 'pred_age_1', 'real_age':'real_age_1'}, axis=1, inplace=True)
-
-            total_test_df = pd.merge(total_test_df, long2[['Subject', 'real_age_2', 'pred_age_2']], on='Subject', how='left')
-            total_test_df = pd.merge(total_test_df, long3[['Subject', 'real_age_3', 'pred_age_3']], on='Subject', how='left')
-
-            # total_test_df.rename({'pred_age': 'pred_age_2'}, axis=1, inplace=True)
-            total_test_df.fillna(0, inplace=True)
-
-            total_test_df['real_age_2'] = total_test_df['real_age_2'] + total_test_df['real_age_3']
-            total_test_df['pred_age_2'] = total_test_df['pred_age_2'] + total_test_df['pred_age_3']
-
-            # total_test_df.rename({'real_age_2_x': 'real_age_2', 'pred_age_2_x':'pred_age_2'}, axis=1, inplace=True)
-            total_test_df.drop(['real_age_3', 'pred_age_3'], axis=1, inplace=True) 
-
-            total_test_df.replace(0, np.nan, inplace=True)
-            total_test_df.dropna(axis=0, inplace=True)
-
-            total_test_df['repeat_idx'] = [rep] * len(total_test_df)
-            total_test_df['modality'] = [modal] * len(total_test_df)
-            try:
-                total_test_df.drop(['Unnamed: 0'], axis=1, inplace=True)
-            except:
-                pass
-
-            final_df = pd.concat([final_df, total_test_df], axis=0)
-
-    return final_df
 
 
 def Longitudinal_performance(total_df, interval_list, verbose=False):
@@ -641,3 +587,117 @@ def mMAE(df, real_col, pred_col, interval_list, verbose=False): # Robustness
     mMAE = np.max(MAE_list)
     
     return mMAE
+
+
+
+def BrainPAD_with_covariate(corrected_df, covariate_cols,verbose=False,):
+    
+
+    for _control in corrected_df['Control'].unique():
+        print("#############################", _control, "#############################")
+        total_df = corrected_df.copy()
+        total_df.rename({"Sex(1=m,2=f)": "Sex"}, inplace=True, axis=1)
+        total_df = total_df[total_df['Control'] == _control]
+        
+        total_df['Age2'] = total_df['Age']**2
+        total_df['Sex*Age'] = total_df['Sex'] * total_df['Age']
+        total_df['Control'] = total_df['Control'].map({'HC': 1, 'SZ': 2, "MCI": 3, "AD": 4})
+        
+        use_cols = covariate_cols + ['avg_pred_age']
+        cov_df = total_df[use_cols]
+
+        temp_df = cov_df.copy()
+        drop_na_list = covariate_cols + ['avg_pred_age']
+        
+        temp_df = temp_df.dropna(subset=drop_na_list, axis=0)
+        temp_y_df = temp_df["avg_pred_age"]
+        temp_df.drop(["avg_pred_age"], axis=1, inplace=True)
+        
+        temp_df['intercept'] = 1
+        
+        model = sm.OLS(temp_y_df, temp_df).fit()
+
+        if verbose:
+            print(model.summary())
+
+
+
+
+def association_with_covariate_PAD(corrected_df, covariate_cols, cognitive_cols,verbose=False,):
+    
+    result_df = pd.DataFrame()
+    rest_df = pd.DataFrame()
+    
+    total_df = corrected_df.copy()
+    total_df.rename({"Sex(1=m,2=f)": "Sex"}, inplace=True, axis=1)
+    
+    total_df['Age2'] = total_df['Age']**2
+    total_df['Sex*Age'] = total_df['Sex'] * total_df['Age']
+    total_df['PAD*Sex'] = total_df['corr_PAD'] * total_df['Sex']
+    total_df['PAD*Age'] = total_df['corr_PAD'] * total_df['Age']
+    total_df['PAD*Education'] = total_df['corr_PAD'] * total_df['Education']
+
+    try:
+        total_df['PAD*Duration'] = total_df['corr_PAD'] * total_df['Duration']
+        total_df['Sex*Age*Duration'] = total_df['Sex'] * total_df['Age'] * total_df['Duration']
+        total_df["PAD*Handedness"] = total_df['corr_PAD'] * total_df['Handedness']
+        total_df['Age*Duration'] = total_df['Age'] * total_df['Duration']
+    except:
+        pass
+    
+    cov_df = total_df[covariate_cols]
+    
+    for cog_col in cognitive_cols:
+        
+        filter_col = [cog_col]
+        temp_df = cov_df.copy()
+        temp_df = pd.concat([temp_df, total_df[filter_col]], axis=1)
+        drop_na_list = covariate_cols + [cog_col] + ['corr_PAD']
+        
+        temp_df = temp_df.dropna(subset=drop_na_list, axis=0)
+        temp_y_df = temp_df['corr_PAD']
+        temp_df.drop(['corr_PAD'], axis=1, inplace=True)
+        
+        temp_df['intercept'] = 1
+        
+        model = sm.OLS(temp_y_df, temp_df).fit()
+
+        if verbose:
+            print(model.summary())
+        
+        summary_frame = model.summary2().tables[1]
+        summary_df = summary_frame[['Coef.', 't', 'P>|t|', '[0.025', '0.975]']]
+        
+        save_col = ['Coef.', 't', 'p_val', '[0.025', '0.975]']
+        save_value = list(summary_df.loc[cog_col].values)
+        
+        if save_value[2] < 0.05:
+            print(model.summary())
+        
+        save_col.insert(0, 'Measure')
+        save_value.insert(0, cog_col)
+        
+        save_row = pd.DataFrame([save_value], columns=save_col)
+        save_row['r'] = r_from_t(save_row['t'].values[0], len(temp_df) - 2)
+        save_row['r2'] = r2_from_t(save_row['t'].values[0], len(temp_df) - 2)
+
+        result_df = pd.concat([result_df, save_row], axis=0)
+
+        summary_frame['Variable'] = summary_frame.index
+        summary_frame = pd.concat([summary_frame.iloc[:, -1], summary_frame.iloc[:,:-1]], axis=1)
+
+        dummy_col = summary_frame.columns
+        dummy_row = pd.DataFrame(np.zeros((1, len(dummy_col)), dtype=np.float32), columns=dummy_col)
+        summary_frame = pd.concat([summary_frame, dummy_row, dummy_row], axis=0)
+
+        rest_df = pd.concat([rest_df, summary_frame], axis=0)
+        
+    result_df.reset_index(drop=True, inplace=True)
+    rest_df.reset_index(drop=True, inplace=True)
+    rest_df.replace(0, np.nan, inplace=True)
+    
+    p_val_list = result_df['p_val'].values
+    fdr = fdrcorrection(p_val_list, alpha=0.05)
+    result_df['FDR'] = fdr[1].round(4)
+        
+    return result_df, total_df, rest_df
